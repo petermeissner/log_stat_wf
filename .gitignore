@@ -1,0 +1,43 @@
+# Go build output
+/log_stat
+/log_stat.exe
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Temporary files
+*.tmp
+*.temp
+
+# Test and log files
+logs/**
+test.log
+*.log
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Dependency directories (optional, comment out if using go.mod)
+vendor/
+
+# Go module files (if you generate them)
+go.sum
+
+# Binary name specific to this project
+dist/
+build/
+**/*.exe
+
