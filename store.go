@@ -45,6 +45,7 @@ func (s *LogStatStore) AddOrUpdate(hostName, level string, logger string) *LogSt
 	// Create new entry
 	stat := &LogStat{
 		ID:            s.nextID,
+		HostName:      hostName,
 		TS_Start:      timestamp,
 		TS_Interval_S: 0,
 		Level:         level,

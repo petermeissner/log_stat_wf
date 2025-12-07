@@ -18,26 +18,32 @@ func main() {
 
 	// Define command-line flags
 	host := flag.String("host", "localhost", "Host to listen on")
-	port := flag.String("port", "3001", "Port to listen on")
+	tcpPort := flag.String("tcp-port", "3001", "TCP port for log receiver")
+	httpPort := flag.String("http-port", "3000", "HTTP port for web interface")
 	verbose := flag.Bool("verbose", false, "Enable verbose output")
 	flag.Parse()
 
-	listenAddr := *host + ":" + *port
+	tcpAddr := *host + ":" + *tcpPort
+	httpAddr := *host + ":" + *httpPort
 
 	log.Println("=== WildFly Log Receiver ===")
-	log.Println("=== Starting Server on " + listenAddr + " ===")
+	log.Println("=== Starting TCP server on " + tcpAddr + " ===")
+	log.Println("=== Starting HTTP server on " + httpAddr + " ===")
 
 	// Create log stat store
 	store := NewLogStatStore()
 
-	// Listen on the specified address
-	listener, err := net.Listen("tcp", listenAddr)
+	// Start TCP listener for logs
+	listener, err := net.Listen("tcp", tcpAddr)
 	if err != nil {
-		log.Fatal("Failed to listen:", err)
+		log.Fatal("Failed to listen on TCP:", err)
 	}
 	defer listener.Close()
 
-	log.Println("=== Server listening, waiting for WildFly logs... === ")
+	// Start HTTP server
+	go startHTTPServer(httpAddr, store)
+
+	log.Println("=== Servers listening ===")
 
 	// Handle graceful shutdown
 	sigChan := make(chan os.Signal, 1)
@@ -51,7 +57,7 @@ func main() {
 		os.Exit(0)
 	}()
 
-	// Accept connections
+	// Accept TCP connections
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
