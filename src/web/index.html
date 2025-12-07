@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WildFly Log Statistics</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>WildFly Log Statistics</h1>
+        <button class="refresh-btn" onclick="loadStats()">Refresh</button>
+        <div id="error" class="error" style="display: none;"></div>
+        <div id="loading" class="loading" style="display: none;">Loading statistics...</div>
+        <table id="statsTable" style="display: none;">
+            <thead>
+                <tr>
+                    <th>Host</th>
+                    <th>Logger</th>
+                    <th>Level</th>
+                    <th>Count</th>
+                    <th>First Seen</th>
+                    <th>Duration (seconds)</th>
+                </tr>
+            </thead>
+            <tbody id="statsBody"></tbody>
+        </table>
+    </div>
+    <script src="/app.js"></script>
+</body>
+</html>
