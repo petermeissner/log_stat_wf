@@ -1,14 +1,18 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
+	"log"
 	"sync"
 	"time"
+
+	_ "modernc.org/sqlite"
 )
 
 // LogStatStore manages in-memory storage of LogStat entries
 type LogStatStore struct {
-	entries map[string]*LogStat // key: "level:logger"
+	entries map[string]*LogStat // key: "host:level:logger"
 	nextID  int
 	mu      sync.RWMutex
 }
@@ -109,4 +113,64 @@ func (s *LogStatStore) calculateInterval(startTS string) int {
 
 	elapsed := time.Since(startTime)
 	return int(elapsed.Seconds())
+}
+
+// FlushToDb writes all LogStat entries to SQLite database and clears the store
+func (s *LogStatStore) FlushToDb(dbPath string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	log.Printf("Flushing %d entries to database: %s\n", len(s.entries), dbPath)
+
+	// Calculate final intervals for all entries
+	for _, stat := range s.entries {
+		stat.TS_Interval_S = s.calculateInterval(stat.TS_Start)
+	}
+
+	// Open or create database
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		log.Printf("Error opening database: %v\n", err)
+		s.entries = make(map[string]*LogStat)
+		return err
+	}
+	defer db.Close()
+
+	// Create table if it doesn't exist
+	createTableSQL := `
+	CREATE TABLE IF NOT EXISTS log_stats (
+		id INTEGER PRIMARY KEY,
+		hostname TEXT NOT NULL,
+		ts_start TEXT NOT NULL,
+		ts_interval_s INTEGER NOT NULL,
+		level TEXT NOT NULL,
+		logger TEXT NOT NULL,
+		n INTEGER NOT NULL
+	);
+	`
+
+	if _, err := db.Exec(createTableSQL); err != nil {
+		log.Printf("Error creating table: %v\n", err)
+		s.entries = make(map[string]*LogStat)
+		return err
+	}
+
+	// Insert all entries into database
+	insertSQL := `
+	INSERT INTO log_stats (hostname, ts_start, ts_interval_s, level, logger, n)
+	VALUES (?, ?, ?, ?, ?, ?);
+	`
+
+	for _, stat := range s.entries {
+		if _, err := db.Exec(insertSQL, stat.HostName, stat.TS_Start, stat.TS_Interval_S, stat.Level, stat.Logger, stat.N); err != nil {
+			log.Printf("Error inserting log stat: %v\n", err)
+		}
+	}
+
+	// Clear the store
+	s.entries = make(map[string]*LogStat)
+	s.nextID = 1
+
+	log.Printf("Successfully flushed data to database and cleared store\n")
+	return nil
 }

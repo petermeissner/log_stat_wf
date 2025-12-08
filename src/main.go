@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 )
 
 func main() {
@@ -20,15 +21,17 @@ func main() {
 	host := flag.String("host", "localhost", "Host to listen on")
 	tcpPort := flag.String("tcp-port", "3001", "TCP port for log receiver")
 	httpPort := flag.String("http-port", "3000", "HTTP port for web interface")
+	dbPath := flag.String("db-path", "log_stat.db", "Path to SQLite database file")
+	flushInterval := flag.Duration("flush-interval", 5*time.Minute, "Interval for flushing data to database")
 	verbose := flag.Bool("verbose", false, "Enable verbose output")
 	flag.Parse()
 
 	tcpAddr := *host + ":" + *tcpPort
 	httpAddr := *host + ":" + *httpPort
 
-	log.Println("=== WildFly Log Receiver ===")
-	log.Println("=== Starting TCP server on " + tcpAddr + " ===")
-	log.Println("=== Starting HTTP server on " + httpAddr + " ===")
+	log.Println("=== WildFly Log Receiver/Reporter ===")
+	log.Println("=== Starting LogIngest Server on " + tcpAddr + " ===")
+	log.Println("=== Starting LogStat HTTP Server on " + httpAddr + " ===")
 
 	// Create log stat store
 	store := NewLogStatStore()
@@ -43,6 +46,16 @@ func main() {
 	// Start HTTP server
 	go startHTTPServer(httpAddr, store)
 
+	// Start periodic flush to database
+	go func() {
+		ticker := time.NewTicker(*flushInterval)
+		defer ticker.Stop()
+
+		for range ticker.C {
+			store.FlushToDb(*dbPath)
+		}
+	}()
+
 	log.Println("=== Servers listening ===")
 
 	// Handle graceful shutdown
@@ -53,6 +66,7 @@ func main() {
 		<-sigChan
 		log.Println("\n\n=== Shutting down ===")
 		store.PrintSummary()
+		store.FlushToDb(*dbPath)
 		listener.Close()
 		os.Exit(0)
 	}()
