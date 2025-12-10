@@ -22,19 +22,39 @@ func main() {
 	tcpPort := flag.String("tcp-port", "3001", "TCP port for log receiver")
 	httpPort := flag.String("http-port", "3000", "HTTP port for web interface")
 	dbPath := flag.String("db-path", "log_stat.db", "Path to SQLite database file")
-	flushInterval := flag.Duration("flush-interval", 5*time.Minute, "Interval for flushing data to database")
+	bucketSize := flag.Duration("bucket-size", 1*time.Minute, "Time bucket size (1m, 5m, 10m, 15m, 20m, 30m, 60m)")
 	verbose := flag.Bool("verbose", false, "Enable verbose output")
 	flag.Parse()
 
 	tcpAddr := *host + ":" + *tcpPort
 	httpAddr := *host + ":" + *httpPort
 
+	// Validate bucket size
+	validSizes := map[time.Duration]bool{
+		1 * time.Minute:  true,
+		5 * time.Minute:  true,
+		10 * time.Minute: true,
+		15 * time.Minute: true,
+		20 * time.Minute: true,
+		30 * time.Minute: true,
+		60 * time.Minute: true,
+	}
+	if !validSizes[*bucketSize] {
+		log.Fatal("Invalid bucket size. Allowed values: 1m, 5m, 10m, 15m, 20m, 30m, 60m")
+	}
+
 	log.Println("=== WildFly Log Receiver/Reporter ===")
 	log.Println("=== Starting LogIngest Server on " + tcpAddr + " ===")
 	log.Println("=== Starting LogStat HTTP Server on " + httpAddr + " ===")
+	log.Printf("=== Bucket size: %v ===\n", *bucketSize)
 
-	// Create log stat store
-	store := NewLogStatStore()
+	// Create log stat store with bucket size
+	store := NewLogStatStore(*bucketSize, *dbPath)
+
+	// Initialize database
+	if err := store.InitDB(); err != nil {
+		log.Fatalf("Failed to initialize database: %v", err)
+	}
 
 	// Start TCP listener for logs
 	listener, err := net.Listen("tcp", tcpAddr)
@@ -48,11 +68,11 @@ func main() {
 
 	// Start periodic flush to database
 	go func() {
-		ticker := time.NewTicker(*flushInterval)
+		ticker := time.NewTicker(10 * time.Minute)
 		defer ticker.Stop()
 
 		for range ticker.C {
-			store.FlushToDb(*dbPath)
+			store.FlushToDb()
 		}
 	}()
 
@@ -66,7 +86,7 @@ func main() {
 		<-sigChan
 		log.Println("\n\n=== Shutting down ===")
 		store.PrintSummary()
-		store.FlushToDb(*dbPath)
+		store.FlushToDb()
 		listener.Close()
 		os.Exit(0)
 	}()

@@ -5,27 +5,93 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-    <div class="container">
+    <div class="main-container">
         <h1>WildFly Log Statistics</h1>
-        <button class="refresh-btn" onclick="loadStats()">Refresh</button>
-        <div id="error" class="error" style="display: none;"></div>
-        <div id="loading" class="loading" style="display: none;">Loading statistics...</div>
-        <table id="statsTable" style="display: none;">
-            <thead>
-                <tr>
-                    <th>Host</th>
-                    <th>Logger</th>
-                    <th>Level</th>
-                    <th>Count</th>
-                    <th>First Seen</th>
-                    <th>Duration (seconds)</th>
-                </tr>
-            </thead>
-            <tbody id="statsBody"></tbody>
-        </table>
+        
+        <div class="content-wrapper">
+            <!-- Left Panel: Filters and Settings -->
+            <div class="left-panel">
+                <!-- Filter Form -->
+                <div class="filter-section">
+                    <h2>Filter Options</h2>
+                    <form id="filterForm">
+                        <div class="form-group">
+                            <label for="minTs">From:</label>
+                            <input type="datetime-local" id="minTs" name="minTs">
+                        </div>
+                        <div class="form-group">
+                            <label for="maxTs">To:</label>
+                            <input type="datetime-local" id="maxTs" name="maxTs">
+                        </div>
+                        <button type="submit" class="btn-primary">Apply Filters</button>
+                    </form>
+                </div>
+
+                <!-- Auto-Refresh Control -->
+                <div class="refresh-section">
+                    <h2>Auto-Refresh</h2>
+                    <form id="refreshForm">
+                        <div class="form-group">
+                            <label for="refreshFrequency">Frequency:</label>
+                            <select id="refreshFrequency" name="refreshFrequency">
+                                <option value="5000">5 seconds</option>
+                                <option value="10000">10 seconds</option>
+                                <option value="30000">30 seconds</option>
+                                <option value="60000">1 minute</option>
+                                <option value="300000">5 minutes</option>
+                                <option value="600000">10 minutes</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="autoRefreshCheckbox">
+                                <input type="checkbox" id="autoRefreshCheckbox" name="autoRefresh">
+                                Enable Auto-Refresh
+                            </label>
+                        </div>
+                        <button type="button" class="btn-secondary" id="manualRefreshBtn">Manual Refresh</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Right Panel: Stats Table -->
+            <div class="right-panel">
+                <div id="loading" class="loading" style="display: none;">Loading statistics...</div>
+                <div id="error" class="error" style="display: none;"></div>
+
+                <!-- Chart Section -->
+                <div class="chart-section">
+                    <h2>Log Levels Distribution</h2>
+                    <div class="chart-container">
+                        <canvas id="levelChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Table Section -->
+                <div class="table-section">
+                    <h2>Log Statistics</h2>
+                    <table id="statsTable" style="display: none;">
+                        <thead>
+                            <tr>
+                                <th class="sortable" data-column="HostName">Host<span class="sort-indicator"></span></th>
+                                <th class="sortable" data-column="Logger">Logger<span class="sort-indicator"></span></th>
+                                <th class="sortable" data-column="Level">Level<span class="sort-indicator"></span></th>
+                                <th class="sortable" data-column="N">Count<span class="sort-indicator"></span></th>
+                                <th class="sortable" data-column="BucketTS">Bucket Start<span class="sort-indicator"></span></th>
+                                <th class="sortable" data-column="FirstSeenTS">First Seen<span class="sort-indicator"></span></th>
+                                <th class="sortable" data-column="BucketDuration_S">Bucket Duration (s)<span class="sort-indicator"></span></th>
+                                <th class="sortable" data-column="Rate">Rate (msg/hr)<span class="sort-indicator"></span></th>
+                            </tr>
+                        </thead>
+                        <tbody id="statsBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
+
     <script src="/app.js"></script>
 </body>
 </html>

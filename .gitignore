@@ -42,4 +42,5 @@ go.sum
 dist/
 build/
 **/*.exe
-
+**/*.db
+*.db
