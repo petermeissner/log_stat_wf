@@ -95,7 +95,7 @@ func startHTTPServer(addr string, store *LogStatStore) {
 		Browse:     false,
 	}))
 
-	log.Printf("Fiber HTTP server starting on %s\n", addr)
+	log.Printf("=== Fiber HTTP server starting on %s ===\n", addr)
 	if err := app.Listen(addr); err != nil {
 		log.Fatalf("HTTP server error: %v\n", err)
 	}

@@ -49,7 +49,7 @@ func main() {
 	log.Printf("=== Bucket size: %v ===\n", *bucketSize)
 
 	// Create log stat store with bucket size
-	store := NewLogStatStore(*bucketSize, *dbPath)
+	store := NewLogStatStore(*bucketSize, *dbPath, *verbose)
 
 	// Initialize database
 	if err := store.InitDB(); err != nil {
@@ -114,7 +114,7 @@ func handleConnection(conn net.Conn, verbose bool, store *LogStatStore) {
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		handleLogEntry(line, store)
+		store.handleJsonLogEntry(line)
 	}
 
 	if err := scanner.Err(); err != nil {

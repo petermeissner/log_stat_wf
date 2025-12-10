@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 	"sync"
@@ -18,16 +19,18 @@ type LogStatStore struct {
 	appStartTime time.Time
 	mu           sync.RWMutex
 	dbPath       string // path to SQLite database file
+	verbose      bool   // enable verbose output
 }
 
 // NewLogStatStore creates a new store instance with the specified bucket size
-func NewLogStatStore(bucketSize time.Duration, dbPath string) *LogStatStore {
+func NewLogStatStore(bucketSize time.Duration, dbPath string, verbose bool) *LogStatStore {
 	return &LogStatStore{
 		entries:      make(map[string]*LogStat),
 		nextID:       1,
 		bucketSize:   bucketSize,
 		appStartTime: time.Now(),
 		dbPath:       dbPath,
+		verbose:      verbose,
 	}
 }
 
@@ -239,4 +242,37 @@ func (s *LogStatStore) QueryDatabase() ([]*LogStat, error) {
 	}
 
 	return stats, nil
+}
+
+func (s *LogStatStore) handleJsonLogEntry(line string) {
+	// Try to parse as JSON
+	var logEntry map[string]interface{}
+	err := json.Unmarshal([]byte(line), &logEntry)
+
+	if err == nil {
+		// Extract fields
+		level := ""
+		loggerName := ""
+		hostName := ""
+
+		if lvl, ok := logEntry["level"]; ok {
+			level = fmt.Sprintf("%v", lvl)
+		}
+		if log, ok := logEntry["loggerName"]; ok {
+			loggerName = fmt.Sprintf("%v", log)
+		}
+		if h, ok := logEntry["hostName"]; ok {
+			hostName = fmt.Sprintf("%v", h)
+		}
+		// Add or update in store
+		stat := s.AddOrUpdate(hostName, level, loggerName)
+
+		// Simple output
+		if s.verbose {
+			log.Printf("[host: %s,  loggerName: %s, level:%s] = Count: %d\n", hostName, loggerName, level, stat.N)
+		}
+	} else {
+		// Parse error, just print the line
+		log.Fatalf("[%s]", line)
+	}
 }
