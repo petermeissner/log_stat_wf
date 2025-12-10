@@ -12,11 +12,6 @@ import (
 )
 
 func main() {
-	// Configure logger with custom timestamp format
-	log.SetFlags(0)
-	log.SetPrefix("")
-	log.SetOutput(&logWriter{})
-
 	// Define command-line flags
 	host := flag.String("host", "localhost", "Host to listen on")
 	tcpPort := flag.String("tcp-port", "3001", "TCP port for log receiver")
@@ -25,6 +20,9 @@ func main() {
 	bucketSize := flag.Duration("bucket-size", 1*time.Minute, "Time bucket size (1m, 5m, 10m, 15m, 20m, 30m, 60m)")
 	verbose := flag.Bool("verbose", false, "Enable verbose output")
 	flag.Parse()
+
+	// Setup logging with rotation (console + rotating file)
+	setupLogging("log_stat.log")
 
 	tcpAddr := *host + ":" + *tcpPort
 	httpAddr := *host + ":" + *httpPort
