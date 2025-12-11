@@ -2,8 +2,10 @@ package main
 
 import (
 	"embed"
+	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -12,6 +14,26 @@ import (
 
 //go:embed web/*
 var webFiles embed.FS
+
+// logRequest logs HTTP request parameters and execution time
+func logRequest(endpoint string, params map[string]string, start time.Time, resultCount int, err error) {
+	duration := time.Since(start)
+	status := "OK"
+	if err != nil {
+		status = fmt.Sprintf("ERROR: %v", err)
+	}
+
+	paramStr := ""
+	for k, v := range params {
+		if paramStr != "" {
+			paramStr += ", "
+		}
+		paramStr += fmt.Sprintf("%s=%s", k, v)
+	}
+
+	log.Printf("[HTTP] %s | %s | Results: %d | Duration: %v | Params: {%s}",
+		endpoint, status, resultCount, duration, paramStr)
+}
 
 func filterStatsByTimestamp(stats []*LogStat, minTS, maxTS string) []*LogStat {
 	if minTS == "" && maxTS == "" {
@@ -63,10 +85,16 @@ func startHTTPServer(addr string, store *LogStatStore) {
 		AppName: "WildFly Log Statistics",
 	})
 
-	// Unified API endpoint for stats with optional timestamp filtering
+	// Legacy API endpoint (kept for backward compatibility)
 	app.Get("/api/stats", func(c *fiber.Ctx) error {
+		start := time.Now()
 		minTS := c.Query("min_ts")
 		maxTS := c.Query("max_ts")
+
+		params := map[string]string{
+			"min_ts": minTS,
+			"max_ts": maxTS,
+		}
 
 		// Get all current stats
 		current := store.GetAll()
@@ -85,7 +113,186 @@ func startHTTPServer(addr string, store *LogStatStore) {
 		// Filter by timestamp if provided
 		allStats = filterStatsByTimestamp(allStats, minTS, maxTS)
 
+		logRequest("/api/stats", params, start, len(allStats), nil)
 		return c.JSON(allStats)
+	})
+
+	// New query API with filters
+	app.Get("/api/query/stats", func(c *fiber.Ctx) error {
+		start := time.Now()
+
+		filter := QueryFilter{
+			Level:         c.Query("level"),
+			LoggerRegex:   c.Query("logger_regex"),
+			IncludeMemory: c.QueryBool("include_memory", true),
+			IncludeDB:     c.QueryBool("include_db", true),
+		}
+
+		params := map[string]string{
+			"level":          c.Query("level"),
+			"logger_regex":   c.Query("logger_regex"),
+			"start_time":     c.Query("start_time"),
+			"end_time":       c.Query("end_time"),
+			"max_results":    c.Query("max_results"),
+			"include_memory": fmt.Sprintf("%v", filter.IncludeMemory),
+			"include_db":     fmt.Sprintf("%v", filter.IncludeDB),
+		}
+
+		// Parse time filters
+		if startTime := c.Query("start_time"); startTime != "" {
+			if t, err := time.Parse(time.RFC3339, startTime); err == nil {
+				filter.StartTime = t
+			}
+		}
+		if endTime := c.Query("end_time"); endTime != "" {
+			if t, err := time.Parse(time.RFC3339, endTime); err == nil {
+				filter.EndTime = t
+			}
+		}
+
+		// Parse max results
+		if maxResults := c.Query("max_results"); maxResults != "" {
+			if n, err := strconv.Atoi(maxResults); err == nil {
+				filter.MaxResults = n
+			}
+		}
+
+		stats, err := store.QueryLogStats(filter)
+		if err != nil {
+			logRequest("/api/query/stats", params, start, 0, err)
+			return c.Status(500).JSON(fiber.Map{
+				"error": err.Error(),
+			})
+		}
+
+		logRequest("/api/query/stats", params, start, len(stats), nil)
+		return c.JSON(stats)
+	})
+
+	// Aggregated stats API
+	app.Get("/api/query/aggregated", func(c *fiber.Ctx) error {
+		start := time.Now()
+
+		filter := QueryFilter{
+			Level:         c.Query("level"),
+			LoggerRegex:   c.Query("logger_regex"),
+			IncludeMemory: c.QueryBool("include_memory", true),
+			IncludeDB:     c.QueryBool("include_db", true),
+		}
+
+		params := map[string]string{
+			"level":          c.Query("level"),
+			"logger_regex":   c.Query("logger_regex"),
+			"start_time":     c.Query("start_time"),
+			"end_time":       c.Query("end_time"),
+			"max_results":    c.Query("max_results"),
+			"include_memory": fmt.Sprintf("%v", filter.IncludeMemory),
+			"include_db":     fmt.Sprintf("%v", filter.IncludeDB),
+		}
+
+		// Parse time filters
+		if startTime := c.Query("start_time"); startTime != "" {
+			if t, err := time.Parse(time.RFC3339, startTime); err == nil {
+				filter.StartTime = t
+			}
+		}
+		if endTime := c.Query("end_time"); endTime != "" {
+			if t, err := time.Parse(time.RFC3339, endTime); err == nil {
+				filter.EndTime = t
+			}
+		}
+
+		// Parse max results
+		if maxResults := c.Query("max_results"); maxResults != "" {
+			if n, err := strconv.Atoi(maxResults); err == nil {
+				filter.MaxResults = n
+			}
+		}
+
+		aggregated, err := store.QueryAggregatedStatsOptimized(filter)
+		if err != nil {
+			logRequest("/api/query/aggregated", params, start, 0, err)
+			return c.Status(500).JSON(fiber.Map{
+				"error": err.Error(),
+			})
+		}
+
+		logRequest("/api/query/aggregated", params, start, len(aggregated), nil)
+		return c.JSON(aggregated)
+	})
+
+	// Quick helpers
+	app.Get("/api/query/recent", func(c *fiber.Ctx) error {
+		start := time.Now()
+		hours := c.QueryInt("hours", 24)
+		maxResults := c.QueryInt("max_results", 1000)
+
+		params := map[string]string{
+			"hours":       fmt.Sprintf("%d", hours),
+			"max_results": fmt.Sprintf("%d", maxResults),
+		}
+
+		stats, err := store.QueryRecentStats(hours, maxResults)
+		if err != nil {
+			logRequest("/api/query/recent", params, start, 0, err)
+			return c.Status(500).JSON(fiber.Map{
+				"error": err.Error(),
+			})
+		}
+
+		logRequest("/api/query/recent", params, start, len(stats), nil)
+		return c.JSON(stats)
+	})
+
+	app.Get("/api/query/by_level", func(c *fiber.Ctx) error {
+		start := time.Now()
+		level := c.Query("level")
+		if level == "" {
+			logRequest("/api/query/by_level", map[string]string{"level": "missing"}, start, 0, fmt.Errorf("level parameter required"))
+			return c.Status(400).JSON(fiber.Map{
+				"error": "level parameter is required",
+			})
+		}
+
+		includeMemory := c.QueryBool("include_memory", true)
+		includeDB := c.QueryBool("include_db", true)
+
+		params := map[string]string{
+			"level":          level,
+			"include_memory": fmt.Sprintf("%v", includeMemory),
+			"include_db":     fmt.Sprintf("%v", includeDB),
+		}
+
+		stats, err := store.QueryByLevel(level, includeMemory, includeDB)
+		if err != nil {
+			logRequest("/api/query/by_level", params, start, 0, err)
+			return c.Status(500).JSON(fiber.Map{
+				"error": err.Error(),
+			})
+		}
+
+		logRequest("/api/query/by_level", params, start, len(stats), nil)
+		return c.JSON(stats)
+	})
+
+	app.Get("/api/query/aggregated_recent", func(c *fiber.Ctx) error {
+		start := time.Now()
+		hours := c.QueryInt("hours", 24)
+
+		params := map[string]string{
+			"hours": fmt.Sprintf("%d", hours),
+		}
+
+		aggregated, err := store.QueryRecentAggregated(hours)
+		if err != nil {
+			logRequest("/api/query/aggregated_recent", params, start, 0, err)
+			return c.Status(500).JSON(fiber.Map{
+				"error": err.Error(),
+			})
+		}
+
+		logRequest("/api/query/aggregated_recent", params, start, len(aggregated), nil)
+		return c.JSON(aggregated)
 	})
 
 	// Serve embedded static files (CSS, JS)

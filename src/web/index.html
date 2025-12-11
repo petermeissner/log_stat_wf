@@ -19,6 +19,30 @@
                     <h2>Filter Options</h2>
                     <form id="filterForm">
                         <div class="form-group">
+                            <label for="viewMode">View Mode:</label>
+                            <select id="viewMode" name="viewMode">
+                                <option value="detailed">Detailed (by Logger)</option>
+                                <option value="aggregated">Aggregated (Sum by Level)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="level">Level:</label>
+                            <select id="level" name="level">
+                                <option value="">All Levels</option>
+                                <option value="FATAL">FATAL</option>
+                                <option value="ERROR">ERROR</option>
+                                <option value="WARN">WARN</option>
+                                <option value="WARNING">WARNING</option>
+                                <option value="INFO">INFO</option>
+                                <option value="DEBUG">DEBUG</option>
+                                <option value="TRACE">TRACE</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="loggerRegex">Logger Pattern (regex):</label>
+                            <input type="text" id="loggerRegex" name="loggerRegex" placeholder="e.g., com\\.example\\..*">
+                        </div>
+                        <div class="form-group">
                             <label for="minTs">From:</label>
                             <input type="datetime-local" id="minTs" name="minTs">
                         </div>
@@ -26,7 +50,24 @@
                             <label for="maxTs">To:</label>
                             <input type="datetime-local" id="maxTs" name="maxTs">
                         </div>
+                        <div class="form-group">
+                            <label for="maxResults">Max Results:</label>
+                            <input type="number" id="maxResults" name="maxResults" value="1000" min="1" max="10000">
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="includeMemory" name="includeMemory" checked>
+                                Include In-Memory Data
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="includeDB" name="includeDB" checked>
+                                Include Database Data
+                            </label>
+                        </div>
                         <button type="submit" class="btn-primary">Apply Filters</button>
+                        <button type="button" class="btn-secondary" id="clearFiltersBtn">Clear Filters</button>
                     </form>
                 </div>
 
@@ -71,9 +112,9 @@
 
                 <!-- Table Section -->
                 <div class="table-section">
-                    <h2>Log Statistics</h2>
+                    <h2 id="tableTitle">Log Statistics</h2>
                     <table id="statsTable" style="display: none;">
-                        <thead>
+                        <thead id="statsTableHead">
                             <tr>
                                 <th class="sortable" data-column="HostName">Host<span class="sort-indicator"></span></th>
                                 <th class="sortable" data-column="Logger">Logger<span class="sort-indicator"></span></th>
