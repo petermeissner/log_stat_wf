@@ -1,7 +1,7 @@
 # WildFly 19 Configuration Script for Socket Handler Logging
 
 $WildFlyHome="C:\wildfly-19.0.0.Final"
-$ServerAdress="localhost"
+$ServerAddress="localhost"
 $ServerPort=1515
 $SocketBindingName = "log-message-to-loki"
 
@@ -11,7 +11,7 @@ $jbossCli = Join-Path $WildFlyHome "bin\jboss-cli.bat"
 # Create CLI commands
 $commands = @(
     # "# Add socket binding",
-    # "/socket-binding-group=standard-sockets/remote-destination-outbound-socket-binding=$($SocketBindingName):add(host=$($ServerAdress), port=$($ServerPort))",
+    # "/socket-binding-group=standard-sockets/remote-destination-outbound-socket-binding=$($SocketBindingName):add(host=$($ServerAddress), port=$($ServerPort))",
     # "",
     # "# Add JSON formatter",
     # "/subsystem=logging/json-formatter=json:add(pretty-print=false, exception-output-type=formatted)",

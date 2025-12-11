@@ -18,6 +18,7 @@ func main() {
 	httpPort := flag.String("http-port", "3000", "HTTP port for web interface")
 	dbPath := flag.String("db-path", "log_stat.db", "Path to SQLite database file")
 	bucketSize := flag.Duration("bucket-size", 1*time.Minute, "Time bucket size (1m, 5m, 10m, 15m, 20m, 30m, 60m)")
+	retentionDays := flag.Int("retention-days", 7, "Number of days to retain data in database")
 	verbose := flag.Bool("verbose", false, "Enable verbose output")
 	flag.Parse()
 
@@ -66,7 +67,7 @@ func main() {
 
 	// Start periodic flush to database
 	go func() {
-		ticker := time.NewTicker(10 * time.Minute)
+		ticker := time.NewTicker(5 * time.Minute)
 		defer ticker.Stop()
 
 		for range ticker.C {
@@ -83,10 +84,51 @@ func main() {
 	go func() {
 		<-sigChan
 		log.Println("\n\n=== Shutting down ===")
+		listener.Close()
 		store.PrintSummary()
 		store.FlushToDb()
-		listener.Close()
 		os.Exit(0)
+	}()
+
+	// Start periodic database maintenance
+	go func() {
+		// Run maintenance function
+		runMaintenance := func() {
+			log.Println("=== Running database maintenance ===")
+
+			// Show current stats
+			if stats, err := GetDatabaseStats(*dbPath); err == nil {
+				log.Printf("    "+"Before: %d rows, %.2f MB, %d hosts\n",
+					stats["total_rows"], stats["db_size_mb"], stats["unique_hosts"])
+			}
+
+			// Clean up old data
+			if err := CleanupOldData(*dbPath, *retentionDays); err != nil {
+				log.Printf("    "+"Cleanup error: %v\n", err)
+			}
+
+			// Reclaim disk space
+			if err := VacuumDatabase(*dbPath); err != nil {
+				log.Printf("    "+"Vacuum error: %v\n", err)
+			}
+
+			// Show new stats
+			if stats, err := GetDatabaseStats(*dbPath); err == nil {
+				log.Printf("    "+"After: %d rows, %.2f MB\n",
+					stats["total_rows"], stats["db_size_mb"])
+			}
+		}
+
+		// Run immediately on startup
+		runMaintenance()
+
+		// Then run every 3 hours
+		ticker := time.NewTicker(3 * time.Hour)
+		defer ticker.Stop()
+
+		for range ticker.C {
+			runMaintenance()
+		}
 	}()
 
 	// Accept TCP connections
@@ -101,6 +143,7 @@ func main() {
 		// Handle each connection in a goroutine
 		go handleConnection(conn, *verbose, store)
 	}
+
 }
 
 func handleConnection(conn net.Conn, verbose bool, store *LogStatStore) {
