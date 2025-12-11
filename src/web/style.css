@@ -106,11 +106,73 @@ h3 {
 }
 
 /* Form Sections */
-.filter-section, .refresh-section, .chart-section, .table-section {
+.filter-section, .refresh-section, .chart-section, .table-section, .quick-filter-section {
     padding: 15px;
     background-color: #f9f9f9;
     border-left: 4px solid #4CAF50;
     border-radius: 4px;
+}
+
+.quick-filter-section {
+    margin-bottom: 15px;
+    border-left-color: #2196F3;
+}
+
+.quick-filter-section h3 {
+    margin: 0 0 10px 0;
+    font-size: 14px;
+    color: #333;
+    font-weight: 600;
+}
+
+.quick-filter-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.quick-filter-input {
+    flex: 1;
+    min-width: 200px;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+.quick-filter-select {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 13px;
+    min-width: 120px;
+}
+
+.btn-clear-filter {
+    padding: 8px 15px;
+    background-color: #ff9800;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.3s;
+}
+
+.btn-clear-filter:hover {
+    background-color: #f57c00;
+}
+
+.filter-status {
+    font-size: 12px;
+    color: #666;
+    font-weight: 500;
+    padding: 4px 8px;
+    background-color: #e3f2fd;
+    border-radius: 3px;
+    display: none;
 }
 
 .filter-section h2, .refresh-section h2, .chart-section h2, .table-section h2 {

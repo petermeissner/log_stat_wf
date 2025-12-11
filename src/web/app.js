@@ -1,12 +1,15 @@
 let autoRefreshInterval = null;
 let currentRefreshFrequency = 10000; // Default 10 seconds
 let currentData = []; // Store current table data
+let filteredData = []; // Store filtered data for client-side filtering
 let sortColumn = null;
 let sortDirection = 'asc'; // 'asc' or 'desc'
 let levelChart = null; // Chart.js instance
 let memoryChart = null; // Memory chart instance
 let currentViewMode = 'detailed'; // 'detailed' or 'aggregated'
 let currentPage = 'dashboard'; // Current active page
+let quickFilterText = ''; // Client-side filter text
+let quickFilterLevel = ''; // Client-side filter level
 
 // Color mapping for log levels
 const levelColors = {
@@ -27,6 +30,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Setup navigation
     setupNavigation();
+
+    // Setup quick filter handlers
+    setupQuickFilters();
 
     // Handle filter form submission
     document.getElementById('filterForm').addEventListener('submit', function(e) {
@@ -136,6 +142,88 @@ function setupNavigation() {
             navigateToPage(pageName);
         });
     });
+}
+
+function setupQuickFilters() {
+    const searchInput = document.getElementById('quickSearchInput');
+    const levelFilter = document.getElementById('quickLevelFilter');
+    const clearButton = document.getElementById('clearQuickFilter');
+    
+    // Debounce search input to avoid filtering on every keystroke
+    let searchTimeout;
+    searchInput.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            quickFilterText = this.value.toLowerCase();
+            applyQuickFilter();
+        }, 300); // 300ms debounce
+    });
+    
+    // Level filter - apply immediately
+    levelFilter.addEventListener('change', function() {
+        quickFilterLevel = this.value;
+        applyQuickFilter();
+    });
+    
+    // Clear quick filters
+    clearButton.addEventListener('click', function() {
+        searchInput.value = '';
+        levelFilter.value = '';
+        quickFilterText = '';
+        quickFilterLevel = '';
+        applyQuickFilter();
+    });
+}
+
+function applyQuickFilter() {
+    // Start with all current data
+    filteredData = [...currentData];
+    
+    // Apply text search filter
+    if (quickFilterText) {
+        filteredData = filteredData.filter(stat => {
+            const searchableText = [
+                stat.HostName || '',
+                stat.Logger || '',
+                stat.Level || ''
+            ].join(' ').toLowerCase();
+            return searchableText.includes(quickFilterText);
+        });
+    }
+    
+    // Apply level filter
+    if (quickFilterLevel) {
+        filteredData = filteredData.filter(stat => stat.Level === quickFilterLevel);
+    }
+    
+    // Update filter status
+    const statusEl = document.getElementById('filterStatus');
+    if (quickFilterText || quickFilterLevel) {
+        const total = currentData.length;
+        const filtered = filteredData.length;
+        statusEl.textContent = `Showing ${filtered} of ${total} records`;
+        statusEl.style.display = 'inline';
+    } else {
+        statusEl.style.display = 'none';
+    }
+    
+    // Update chart with filtered data
+    updateChart(filteredData);
+    
+    // Apply sorting if active
+    if (sortColumn) {
+        sortTableData(filteredData);
+    }
+    
+    // Re-render table with filtered data
+    renderTableData(filteredData);
+    
+    // Show empty message if no results
+    if (filteredData.length === 0 && currentData.length > 0) {
+        const tbody = document.getElementById('statsBody');
+        const colspan = currentViewMode === 'aggregated' ? '6' : '8';
+        tbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center; padding: 20px;">No records match the current filter</td></tr>`;
+    }
 }
 
 function navigateToPage(pageName) {
@@ -393,8 +481,8 @@ function sortTable(column) {
         sortDirection = 'asc';
     }
     
-    // Sort the data
-    sortTableData(currentData);
+    // Sort the filtered data (not the original data)
+    sortTableData(filteredData);
     
     // Update sort indicators
     document.querySelectorAll('th.sortable').forEach(th => {
@@ -406,8 +494,8 @@ function sortTable(column) {
         activeHeader.classList.add(sortDirection === 'asc' ? 'sort-asc' : 'sort-desc');
     }
     
-    // Re-render the table
-    renderTableData(currentData);
+    // Re-render the table with filtered and sorted data
+    renderTableData(filteredData);
 }
 
 function loadStats() {
@@ -443,11 +531,19 @@ function loadStats() {
         .then(data => {
             loading.style.display = 'none';
             
-            // Store data for sorting
+            // Store data for sorting and filtering
             currentData = data || [];
+            filteredData = [...currentData]; // Initialize filtered data
+            
+            // Reset quick filters when new data is loaded
+            quickFilterText = '';
+            quickFilterLevel = '';
+            document.getElementById('quickSearchInput').value = '';
+            document.getElementById('quickLevelFilter').value = '';
+            document.getElementById('filterStatus').style.display = 'none';
             
             if (!currentData || currentData.length === 0) {
-                const colspan = viewMode === 'aggregated' ? '5' : '8';
+                const colspan = viewMode === 'aggregated' ? '6' : '8';
                 tbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center; padding: 20px;">No statistics available for the selected filters</td></tr>`;
                 table.style.display = 'table';
                 updateChart([]);

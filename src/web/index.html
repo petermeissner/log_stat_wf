@@ -120,6 +120,26 @@
                 <div id="loading" class="loading" style="display: none;">Loading statistics...</div>
                 <div id="error" class="error" style="display: none;"></div>
 
+                <!-- Quick Filter Section -->
+                <div class="quick-filter-section">
+                    <h3>Quick Filter (Client-Side)</h3>
+                    <div class="quick-filter-controls">
+                        <input type="text" id="quickSearchInput" placeholder="Search host, logger, or level..." class="quick-filter-input">
+                        <select id="quickLevelFilter" class="quick-filter-select">
+                            <option value="">All Levels</option>
+                            <option value="FATAL">FATAL</option>
+                            <option value="ERROR">ERROR</option>
+                            <option value="WARN">WARN</option>
+                            <option value="WARNING">WARNING</option>
+                            <option value="INFO">INFO</option>
+                            <option value="DEBUG">DEBUG</option>
+                            <option value="TRACE">TRACE</option>
+                        </select>
+                        <button type="button" class="btn-clear-filter" id="clearQuickFilter">Clear</button>
+                        <span class="filter-status" id="filterStatus"></span>
+                    </div>
+                </div>
+
                 <!-- Chart Section -->
                 <div class="chart-section">
                     <h2>Log Levels Distribution</h2>
