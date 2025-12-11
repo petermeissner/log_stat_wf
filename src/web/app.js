@@ -4,7 +4,9 @@ let currentData = []; // Store current table data
 let sortColumn = null;
 let sortDirection = 'asc'; // 'asc' or 'desc'
 let levelChart = null; // Chart.js instance
+let memoryChart = null; // Memory chart instance
 let currentViewMode = 'detailed'; // 'detailed' or 'aggregated'
+let currentPage = 'dashboard'; // Current active page
 
 // Color mapping for log levels
 const levelColors = {
@@ -19,8 +21,12 @@ const levelColors = {
 
 // Initialize form handlers and load initial data on page load
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize chart
+    // Initialize charts
     initializeChart();
+    initializeMemoryChart();
+
+    // Setup navigation
+    setupNavigation();
 
     // Handle filter form submission
     document.getElementById('filterForm').addEventListener('submit', function(e) {
@@ -116,6 +122,80 @@ function initializeChart() {
             plugins: {
                 legend: {
                     display: false
+                }
+            }
+        }
+    });
+}
+
+function setupNavigation() {
+    // Handle navigation tab clicks
+    document.querySelectorAll('.nav-tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+            const pageName = this.getAttribute('data-page');
+            navigateToPage(pageName);
+        });
+    });
+}
+
+function navigateToPage(pageName) {
+    // Update active tab
+    document.querySelectorAll('.nav-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    document.querySelector(`.nav-tab[data-page="${pageName}"]`).classList.add('active');
+    
+    // Show/hide pages
+    document.querySelectorAll('.page-content').forEach(page => {
+        page.classList.remove('active');
+    });
+    document.getElementById(`page-${pageName}`).classList.add('active');
+    
+    currentPage = pageName;
+    
+    // Load page-specific data
+    if (pageName === 'dashboard') {
+        loadStats();
+    } else if (pageName === 'system') {
+        loadSystemInfo();
+    } else if (pageName === 'database') {
+        loadDatabaseInfo();
+    }
+}
+
+function initializeMemoryChart() {
+    const ctx = document.getElementById('memoryChart').getContext('2d');
+    memoryChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [
+                {
+                    label: 'Heap Allocated (MB)',
+                    data: [],
+                    borderColor: '#2196F3',
+                    backgroundColor: 'rgba(33, 150, 243, 0.1)',
+                    tension: 0.4
+                },
+                {
+                    label: 'RSS (MB)',
+                    data: [],
+                    borderColor: '#4CAF50',
+                    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                    tension: 0.4
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Memory (MB)'
+                    }
                 }
             }
         }
@@ -414,4 +494,205 @@ function escapeHtml(text) {
     return String(text).replace(/[&<>"']/g, m => map[m]);
 }
 
+function loadSystemInfo() {
+    // Load system information from stats that include memory data
+    const memoryDiv = document.getElementById('memoryStats');
+    const runtimeDiv = document.getElementById('runtimeStats');
+    
+    memoryDiv.innerHTML = '<div class="loading">Loading memory statistics...</div>';
+    runtimeDiv.innerHTML = '<div class="loading">Loading runtime information...</div>';
+    
+    // Fetch recent stats with memory data
+    fetch('/api/query/recent?hours=1&max_results=10&include_memory=true')
+        .then(response => response.json())
+        .then(data => {
+            if (data && data.length > 0) {
+                // Get the most recent stat with memory info
+                const recent = data[0];
+                
+                // Display memory stats
+                memoryDiv.innerHTML = `
+                    <div class="stat-item">
+                        <span class="stat-label">RSS Memory:</span>
+                        <span class="stat-value">${formatBytes(recent.RSS_Bytes || 0)}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Virtual Memory:</span>
+                        <span class="stat-value">${formatBytes(recent.VMS_Bytes || 0)}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Heap Allocated:</span>
+                        <span class="stat-value">${formatBytes(recent.HeapAlloc_Bytes || 0)}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Heap System:</span>
+                        <span class="stat-value">${formatBytes(recent.HeapSys_Bytes || 0)}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Stack:</span>
+                        <span class="stat-value">${formatBytes(recent.Stack_Bytes || 0)}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Goroutines:</span>
+                        <span class="stat-value">${recent.Goroutines || 0}</span>
+                    </div>
+                `;
+                
+                // Display runtime stats
+                runtimeDiv.innerHTML = `
+                    <div class="stat-item">
+                        <span class="stat-label">Host:</span>
+                        <span class="stat-value">${escapeHtml(recent.HostName || 'N/A')}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Last Update:</span>
+                        <span class="stat-value">${formatTimestamp(recent.BucketTS)}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Total Records:</span>
+                        <span class="stat-value">${data.length}</span>
+                    </div>
+                `;
+                
+                // Update memory chart with historical data
+                updateMemoryChart(data);
+            } else {
+                memoryDiv.innerHTML = '<div class="error">No memory data available</div>';
+                runtimeDiv.innerHTML = '<div class="error">No runtime data available</div>';
+            }
+        })
+        .catch(err => {
+            memoryDiv.innerHTML = `<div class="error">Error loading memory stats: ${err.message}</div>`;
+            runtimeDiv.innerHTML = `<div class="error">Error loading runtime stats: ${err.message}</div>`;
+        });
+}
 
+function loadDatabaseInfo() {
+    const dbStatsDiv = document.getElementById('dbStats');
+    const storageDiv = document.getElementById('storageStats');
+    const activityDiv = document.getElementById('recentActivity');
+    
+    dbStatsDiv.innerHTML = '<div class="loading">Loading database statistics...</div>';
+    storageDiv.innerHTML = '<div class="loading">Loading storage information...</div>';
+    activityDiv.innerHTML = '<div class="loading">Loading recent activity...</div>';
+    
+    // Fetch aggregated stats to get database overview
+    fetch('/api/query/aggregated?max_results=100&include_db=true')
+        .then(response => response.json())
+        .then(data => {
+            if (data && data.length > 0) {
+                // Calculate database stats
+                let totalRecords = 0;
+                let uniqueLevels = new Set();
+                let uniqueHosts = new Set();
+                let oldestTimestamp = null;
+                let newestTimestamp = null;
+                
+                data.forEach(stat => {
+                    totalRecords += stat.TotalCount || 0;
+                    uniqueLevels.add(stat.Level);
+                    uniqueHosts.add(stat.HostName);
+                    
+                    const ts = new Date(stat.BucketTS);
+                    if (!oldestTimestamp || ts < oldestTimestamp) {
+                        oldestTimestamp = ts;
+                    }
+                    if (!newestTimestamp || ts > newestTimestamp) {
+                        newestTimestamp = ts;
+                    }
+                });
+                
+                dbStatsDiv.innerHTML = `
+                    <div class="stat-item">
+                        <span class="stat-label">Total Records:</span>
+                        <span class="stat-value">${totalRecords.toLocaleString()}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Unique Levels:</span>
+                        <span class="stat-value">${uniqueLevels.size}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Unique Hosts:</span>
+                        <span class="stat-value">${uniqueHosts.size}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Data Buckets:</span>
+                        <span class="stat-value">${data.length}</span>
+                    </div>
+                `;
+                
+                storageDiv.innerHTML = `
+                    <div class="stat-item">
+                        <span class="stat-label">Oldest Record:</span>
+                        <span class="stat-value">${oldestTimestamp ? formatTimestamp(oldestTimestamp) : 'N/A'}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Newest Record:</span>
+                        <span class="stat-value">${newestTimestamp ? formatTimestamp(newestTimestamp) : 'N/A'}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Data Retention:</span>
+                        <span class="stat-value">30 days</span>
+                    </div>
+                `;
+                
+                // Show recent activity by level
+                const recentByLevel = {};
+                data.slice(0, 10).forEach(stat => {
+                    const level = stat.Level || 'UNKNOWN';
+                    if (!recentByLevel[level]) {
+                        recentByLevel[level] = 0;
+                    }
+                    recentByLevel[level] += stat.TotalCount || 0;
+                });
+                
+                let activityHtml = '<div class="activity-list">';
+                Object.entries(recentByLevel)
+                    .sort((a, b) => b[1] - a[1])
+                    .forEach(([level, count]) => {
+                        const color = levelColors[level] || '#999';
+                        activityHtml += `
+                            <div class="activity-item">
+                                <span class="activity-level" style="background-color: ${color}">${level}</span>
+                                <span class="activity-count">${count.toLocaleString()} messages</span>
+                            </div>
+                        `;
+                    });
+                activityHtml += '</div>';
+                activityDiv.innerHTML = activityHtml;
+            } else {
+                dbStatsDiv.innerHTML = '<div class="error">No database data available</div>';
+                storageDiv.innerHTML = '<div class="error">No storage data available</div>';
+                activityDiv.innerHTML = '<div class="error">No activity data available</div>';
+            }
+        })
+        .catch(err => {
+            dbStatsDiv.innerHTML = `<div class="error">Error loading database stats: ${err.message}</div>`;
+            storageDiv.innerHTML = `<div class="error">Error loading storage info: ${err.message}</div>`;
+            activityDiv.innerHTML = `<div class="error">Error loading activity: ${err.message}</div>`;
+        });
+}
+
+function updateMemoryChart(data) {
+    // Extract memory data from stats (most recent first)
+    const sortedData = [...data].sort((a, b) => 
+        new Date(b.BucketTS) - new Date(a.BucketTS)
+    ).slice(0, 20).reverse(); // Show last 20 data points
+    
+    const labels = sortedData.map(stat => formatTimestamp(stat.BucketTS));
+    const heapData = sortedData.map(stat => (stat.HeapAlloc_Bytes || 0) / 1024 / 1024);
+    const rssData = sortedData.map(stat => (stat.RSS_Bytes || 0) / 1024 / 1024);
+    
+    memoryChart.data.labels = labels;
+    memoryChart.data.datasets[0].data = heapData;
+    memoryChart.data.datasets[1].data = rssData;
+    memoryChart.update();
+}
+
+function formatBytes(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+}

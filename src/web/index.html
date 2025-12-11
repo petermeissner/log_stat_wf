@@ -11,7 +11,25 @@
     <div class="main-container">
         <h1>WildFly Log Statistics</h1>
         
-        <div class="content-wrapper">
+        <!-- Navigation Tabs -->
+        <nav class="nav-tabs">
+            <button class="nav-tab active" data-page="dashboard">
+                <span class="nav-icon">📊</span>
+                <span class="nav-label">Dashboard</span>
+            </button>
+            <button class="nav-tab" data-page="system">
+                <span class="nav-icon">💻</span>
+                <span class="nav-label">System Info</span>
+            </button>
+            <button class="nav-tab" data-page="database">
+                <span class="nav-icon">💾</span>
+                <span class="nav-label">Database Info</span>
+            </button>
+        </nav>
+
+        <!-- Page: Dashboard -->
+        <div class="page-content active" id="page-dashboard">
+            <div class="content-wrapper">
             <!-- Left Panel: Filters and Settings -->
             <div class="left-panel">
                 <!-- Filter Form -->
@@ -128,6 +146,59 @@
                         </thead>
                         <tbody id="statsBody"></tbody>
                     </table>
+                </div>
+            </div>
+        </div>
+        </div>
+
+        <!-- Page: System Info -->
+        <div class="page-content" id="page-system">
+            <div class="info-container">
+                <div class="info-card">
+                    <h2>Memory Statistics</h2>
+                    <div id="memoryStats" class="stats-grid">
+                        <div class="loading">Loading memory statistics...</div>
+                    </div>
+                </div>
+                
+                <div class="info-card">
+                    <h2>Runtime Information</h2>
+                    <div id="runtimeStats" class="stats-grid">
+                        <div class="loading">Loading runtime information...</div>
+                    </div>
+                </div>
+
+                <div class="info-card full-width">
+                    <h2>Memory Usage Chart</h2>
+                    <div class="chart-container">
+                        <canvas id="memoryChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Page: Database Info -->
+        <div class="page-content" id="page-database">
+            <div class="info-container">
+                <div class="info-card">
+                    <h2>Database Statistics</h2>
+                    <div id="dbStats" class="stats-grid">
+                        <div class="loading">Loading database statistics...</div>
+                    </div>
+                </div>
+
+                <div class="info-card">
+                    <h2>Storage Information</h2>
+                    <div id="storageStats" class="stats-grid">
+                        <div class="loading">Loading storage information...</div>
+                    </div>
+                </div>
+
+                <div class="info-card full-width">
+                    <h2>Recent Activity</h2>
+                    <div id="recentActivity">
+                        <div class="loading">Loading recent activity...</div>
+                    </div>
                 </div>
             </div>
         </div>

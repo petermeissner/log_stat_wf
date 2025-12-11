@@ -30,6 +30,64 @@ h3 {
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
+/* Navigation Tabs */
+.nav-tabs {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #ddd;
+    padding-bottom: 0;
+}
+
+.nav-tab {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px;
+    background-color: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    color: #666;
+    transition: all 0.3s;
+}
+
+.nav-tab:hover {
+    color: #333;
+    background-color: #f9f9f9;
+}
+
+.nav-tab.active {
+    color: #4CAF50;
+    border-bottom-color: #4CAF50;
+    background-color: #f9f9f9;
+}
+
+.nav-icon {
+    font-size: 18px;
+}
+
+.nav-label {
+    font-weight: 500;
+}
+
+/* Page Content */
+.page-content {
+    display: none;
+}
+
+.page-content.active {
+    display: block;
+    animation: fadeIn 0.3s;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
 .content-wrapper {
     display: grid;
     grid-template-columns: 280px 1fr;
@@ -228,4 +286,91 @@ tr:hover {
     }
 }
 
+/* Info Pages Styles */
+.info-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 20px;
+    padding: 10px 0;
+}
+
+.info-card {
+    background-color: #f9f9f9;
+    border-left: 4px solid #4CAF50;
+    border-radius: 4px;
+    padding: 20px;
+}
+
+.info-card.full-width {
+    grid-column: 1 / -1;
+}
+
+.info-card h2 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    color: #333;
+}
+
+.stats-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.stat-item:last-child {
+    border-bottom: none;
+}
+
+.stat-label {
+    font-weight: 500;
+    color: #666;
+    font-size: 13px;
+}
+
+.stat-value {
+    font-weight: 600;
+    color: #333;
+    font-size: 14px;
+}
+
+/* Activity List */
+.activity-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.activity-item {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 10px;
+    background-color: white;
+    border-radius: 4px;
+    border-left: 3px solid transparent;
+}
+
+.activity-level {
+    padding: 4px 12px;
+    border-radius: 4px;
+    color: white;
+    font-weight: 600;
+    font-size: 12px;
+    min-width: 80px;
+    text-align: center;
+}
+
+.activity-count {
+    font-weight: 500;
+    color: #666;
+    font-size: 14px;
+}
 
