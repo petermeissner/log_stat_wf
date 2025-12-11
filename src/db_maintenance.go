@@ -13,7 +13,7 @@ import (
 func CleanupOldData(dbPath string, retentionDays int) error {
 	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
-		log.Printf("Error opening database: %v\n", err)
+		log.Printf("    "+"Error opening database: %v\n", err)
 		return err
 	}
 	defer db.Close()
@@ -22,12 +22,12 @@ func CleanupOldData(dbPath string, retentionDays int) error {
 
 	result, err := db.Exec("DELETE FROM log_stats WHERE bucket_ts < ?", cutoffDate)
 	if err != nil {
-		log.Printf("Error cleaning up old data: %v\n", err)
+		log.Printf("    "+"Error cleaning up old data: %v\n", err)
 		return err
 	}
 
 	rowsAffected, _ := result.RowsAffected()
-	log.Printf("Cleanup: deleted %d rows older than %d days\n", rowsAffected, retentionDays)
+	log.Printf("    "+"Cleanup: deleted %d rows older than %d days\n", rowsAffected, retentionDays)
 
 	return nil
 }
@@ -37,21 +37,21 @@ func CleanupOldData(dbPath string, retentionDays int) error {
 func VacuumDatabase(dbPath string) error {
 	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
-		log.Printf("Error opening database: %v\n", err)
+		log.Printf("    "+"Error opening database: %v\n", err)
 		return err
 	}
 	defer db.Close()
 
-	log.Printf("Running VACUUM to reclaim disk space...\n")
+	log.Printf("    " + "Running VACUUM to reclaim disk space...\n")
 	start := time.Now()
 
 	_, err = db.Exec("VACUUM")
 	if err != nil {
-		log.Printf("Error running VACUUM: %v\n", err)
+		log.Printf("    "+"Error running VACUUM: %v\n", err)
 		return err
 	}
 
-	log.Printf("VACUUM completed in %v\n", time.Since(start))
+	log.Printf("    "+"VACUUM completed in %v\n", time.Since(start))
 	return nil
 }
 
