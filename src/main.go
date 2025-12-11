@@ -92,42 +92,15 @@ func main() {
 
 	// Start periodic database maintenance
 	go func() {
-		// Run maintenance function
-		runMaintenance := func() {
-			log.Println("=== Running database maintenance ===")
-
-			// Show current stats
-			if stats, err := GetDatabaseStats(*dbPath); err == nil {
-				log.Printf("    "+"Before: %d rows, %.2f MB, %d hosts\n",
-					stats["total_rows"], stats["db_size_mb"], stats["unique_hosts"])
-			}
-
-			// Clean up old data
-			if err := CleanupOldData(*dbPath, *retentionDays); err != nil {
-				log.Printf("    "+"Cleanup error: %v\n", err)
-			}
-
-			// Reclaim disk space
-			if err := VacuumDatabase(*dbPath); err != nil {
-				log.Printf("    "+"Vacuum error: %v\n", err)
-			}
-
-			// Show new stats
-			if stats, err := GetDatabaseStats(*dbPath); err == nil {
-				log.Printf("    "+"After: %d rows, %.2f MB\n",
-					stats["total_rows"], stats["db_size_mb"])
-			}
-		}
-
 		// Run immediately on startup
-		runMaintenance()
+		RunMaintenance(*dbPath, *retentionDays)
 
 		// Then run every 3 hours
 		ticker := time.NewTicker(3 * time.Hour)
 		defer ticker.Stop()
 
 		for range ticker.C {
-			runMaintenance()
+			RunMaintenance(*dbPath, *retentionDays)
 		}
 	}()
 

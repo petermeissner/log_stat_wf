@@ -94,3 +94,30 @@ func GetDatabaseStats(dbPath string) (map[string]interface{}, error) {
 
 	return stats, nil
 }
+
+// RunMaintenance performs complete database maintenance including stats display, cleanup, and vacuum
+func RunMaintenance(dbPath string, retentionDays int) {
+	log.Println("=== Running database maintenance ===")
+
+	// Show current stats
+	if stats, err := GetDatabaseStats(dbPath); err == nil {
+		log.Printf("    "+"Before: %d rows, %.2f MB, %d hosts\n",
+			stats["total_rows"], stats["db_size_mb"], stats["unique_hosts"])
+	}
+
+	// Clean up old data
+	if err := CleanupOldData(dbPath, retentionDays); err != nil {
+		log.Printf("    "+"Cleanup error: %v\n", err)
+	}
+
+	// Reclaim disk space
+	if err := VacuumDatabase(dbPath); err != nil {
+		log.Printf("    "+"Vacuum error: %v\n", err)
+	}
+
+	// Show new stats
+	if stats, err := GetDatabaseStats(dbPath); err == nil {
+		log.Printf("    "+"After: %d rows, %.2f MB\n",
+			stats["total_rows"], stats["db_size_mb"])
+	}
+}
