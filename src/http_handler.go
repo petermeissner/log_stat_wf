@@ -295,6 +295,87 @@ func startHTTPServer(addr string, store *LogStatStore) {
 		return c.JSON(aggregated)
 	})
 
+	// Prometheus metrics endpoint
+	app.Get("/metrics", func(c *fiber.Ctx) error {
+		start := time.Now()
+
+		// Get stats from the last completed bucket
+		stats, err := store.QueryRecentStats(1, 10000) // Last 1 hour, max 10k results
+		if err != nil {
+			logRequest("/metrics", map[string]string{}, start, 0, err)
+			return c.Status(500).SendString("# Error retrieving metrics\n")
+		}
+
+		// Find the most recent complete bucket timestamp
+		var latestBucket string
+		bucketCounts := make(map[string]int)
+		for _, stat := range stats {
+			bucketCounts[stat.BucketTS]++
+			if latestBucket == "" || stat.BucketTS > latestBucket {
+				latestBucket = stat.BucketTS
+			}
+		}
+
+		// If we have multiple buckets, use the second most recent (last completed)
+		var targetBucket string
+		if len(bucketCounts) > 1 {
+			sortedBuckets := make([]string, 0, len(bucketCounts))
+			for bucket := range bucketCounts {
+				sortedBuckets = append(sortedBuckets, bucket)
+			}
+			// Simple sort by comparing strings (RFC3339 is sortable)
+			for i := 0; i < len(sortedBuckets); i++ {
+				for j := i + 1; j < len(sortedBuckets); j++ {
+					if sortedBuckets[i] < sortedBuckets[j] {
+						sortedBuckets[i], sortedBuckets[j] = sortedBuckets[j], sortedBuckets[i]
+					}
+				}
+			}
+			targetBucket = sortedBuckets[1] // Second most recent
+		} else if len(bucketCounts) == 1 {
+			targetBucket = latestBucket
+		} else {
+			logRequest("/metrics", map[string]string{}, start, 0, nil)
+			c.Set("Content-Type", "text/plain; version=0.0.4")
+			return c.SendString("# No metrics available\n")
+		}
+
+		// Filter stats for target bucket only
+		var bucketStats []*LogStat
+		for _, stat := range stats {
+			if stat.BucketTS == targetBucket {
+				bucketStats = append(bucketStats, stat)
+			}
+		}
+
+		// Generate Prometheus metrics format
+		output := "# HELP wildfly_log_messages_total Total number of log messages by level and logger\n"
+		output += "# TYPE wildfly_log_messages_total counter\n"
+
+		for _, stat := range bucketStats {
+			// Escape label values for Prometheus format
+			hostname := stat.HostName
+			level := stat.Level
+			logger := stat.Logger
+
+			output += fmt.Sprintf("wildfly_log_messages_total{hostname=\"%s\",level=\"%s\",logger=\"%s\"} %d\n",
+				hostname, level, logger, stat.N)
+		}
+
+		// Add bucket timestamp as metadata
+		output += "\n# HELP wildfly_log_bucket_timestamp_seconds Timestamp of the metrics bucket\n"
+		output += "# TYPE wildfly_log_bucket_timestamp_seconds gauge\n"
+
+		bucketTime, err := time.Parse(time.RFC3339, targetBucket)
+		if err == nil {
+			output += fmt.Sprintf("wildfly_log_bucket_timestamp_seconds %d\n", bucketTime.Unix())
+		}
+
+		logRequest("/metrics", map[string]string{"bucket": targetBucket}, start, len(bucketStats), nil)
+		c.Set("Content-Type", "text/plain; version=0.0.4")
+		return c.SendString(output)
+	})
+
 	// Serve embedded static files (CSS, JS)
 	app.Use("/", filesystem.New(filesystem.Config{
 		Root:       http.FS(webFiles),
