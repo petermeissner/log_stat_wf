@@ -4,7 +4,7 @@ let currentData = []; // Store current table data
 let filteredData = []; // Store filtered data for client-side filtering
 let sortColumn = null;
 let sortDirection = 'asc'; // 'asc' or 'desc'
-let levelChart = null; // Chart.js instance
+let levelChart = null; // ECharts instance
 let timeSeriesChart = null; // Time-series chart instance
 let memoryChart = null; // Memory chart instance
 let currentViewMode = 'detailed'; // 'detailed' or 'aggregated'
@@ -107,97 +107,112 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function initializeChart() {
-    const ctx = document.getElementById('levelChart').getContext('2d');
-    levelChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: [],
-            datasets: [{
-                label: 'Message Count by Level',
-                data: [],
-                backgroundColor: [],
-                borderColor: '#ddd',
-                borderWidth: 1
-            }]
+    const chartDom = document.getElementById('levelChart');
+    levelChart = echarts.init(chartDom);
+    
+    const option = {
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: {
+                type: 'shadow'
+            }
         },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            indexAxis: 'x',
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    title: {
-                        display: true,
-                        text: 'Count'
-                    }
-                }
-            },
-            plugins: {
-                legend: {
-                    display: false
-                },
-                title: {
-                    display: false
+        grid: {
+            left: '3%',
+            right: '4%',
+            bottom: '3%',
+            containLabel: true
+        },
+        xAxis: {
+            type: 'category',
+            data: [],
+            axisLabel: {
+                rotate: 0
+            }
+        },
+        yAxis: {
+            type: 'value',
+            name: 'Count'
+        },
+        series: [{
+            name: 'Messages',
+            type: 'bar',
+            data: [],
+            itemStyle: {
+                color: function(params) {
+                    return levelColors[params.name] || '#999';
                 }
             }
-        }
+        }]
+    };
+    
+    levelChart.setOption(option);
+    
+    // Handle window resize
+    window.addEventListener('resize', function() {
+        if (levelChart) levelChart.resize();
     });
 }
 
 function initializeTimeSeriesChart() {
-    const ctx = document.getElementById('timeSeriesChart').getContext('2d');
-    timeSeriesChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: [],
-            datasets: []
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            interaction: {
-                mode: 'index',
-                intersect: false
-            },
-            scales: {
-                x: {
-                    display: true,
-                    title: {
-                        display: true,
-                        text: 'Time'
-                    }
-                },
-                y: {
-                    beginAtZero: true,
-                    title: {
-                        display: true,
-                        text: 'Message Count'
-                    }
-                }
-            },
-            plugins: {
-                legend: {
-                    display: true,
-                    position: 'top',
-                    onClick: (e, legendItem, legend) => {
-                        // Toggle dataset visibility
-                        const index = legendItem.datasetIndex;
-                        const chart = legend.chart;
-                        const meta = chart.getDatasetMeta(index);
-                        meta.hidden = !meta.hidden;
-                        chart.update();
-                    }
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return context.dataset.label + ': ' + context.parsed.y + ' messages';
-                        }
-                    }
-                }
+    const chartDom = document.getElementById('timeSeriesChart');
+    timeSeriesChart = echarts.init(chartDom);
+    
+    const option = {
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: {
+                type: 'cross'
             }
-        }
+        },
+        legend: {
+            data: [],
+            type: 'scroll',
+            bottom: 0
+        },
+        grid: {
+            left: '3%',
+            right: '4%',
+            bottom: '15%',
+            containLabel: true
+        },
+        toolbox: {
+            feature: {
+                dataZoom: {
+                    yAxisIndex: 'none'
+                },
+                restore: {},
+                saveAsImage: {}
+            }
+        },
+        dataZoom: [
+            {
+                type: 'inside',
+                start: 0,
+                end: 100
+            },
+            {
+                start: 0,
+                end: 100
+            }
+        ],
+        xAxis: {
+            type: 'category',
+            boundaryGap: false,
+            data: []
+        },
+        yAxis: {
+            type: 'value',
+            name: 'Message Count'
+        },
+        series: []
+    };
+    
+    timeSeriesChart.setOption(option);
+    
+    // Handle window resize
+    window.addEventListener('resize', function() {
+        if (timeSeriesChart) timeSeriesChart.resize();
     });
 }
 
@@ -374,51 +389,85 @@ function navigateToPage(pageName) {
 }
 
 function initializeMemoryChart() {
-    const ctx = document.getElementById('memoryChart').getContext('2d');
-    memoryChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: [],
-            datasets: [
-                {
-                    label: 'Heap Allocated (MB)',
-                    data: [],
-                    borderColor: '#2196F3',
-                    backgroundColor: 'rgba(33, 150, 243, 0.1)',
-                    tension: 0.4
-                },
-                {
-                    label: 'RSS (MB)',
-                    data: [],
-                    borderColor: '#4CAF50',
-                    backgroundColor: 'rgba(76, 175, 80, 0.1)',
-                    tension: 0.4
-                }
-            ]
+    const chartDom = document.getElementById('memoryChart');
+    memoryChart = echarts.init(chartDom);
+    
+    const option = {
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: {
+                type: 'cross'
+            }
         },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    title: {
-                        display: true,
-                        text: 'Memory (MB)'
-                    }
+        legend: {
+            data: ['Heap Allocated', 'RSS']
+        },
+        grid: {
+            left: '3%',
+            right: '4%',
+            bottom: '3%',
+            containLabel: true
+        },
+        xAxis: {
+            type: 'category',
+            boundaryGap: false,
+            data: []
+        },
+        yAxis: {
+            type: 'value',
+            name: 'Memory (MB)'
+        },
+        series: [
+            {
+                name: 'Heap Allocated',
+                type: 'line',
+                smooth: true,
+                data: [],
+                areaStyle: {
+                    opacity: 0.3
+                },
+                lineStyle: {
+                    color: '#2196F3'
+                },
+                itemStyle: {
+                    color: '#2196F3'
+                }
+            },
+            {
+                name: 'RSS',
+                type: 'line',
+                smooth: true,
+                data: [],
+                areaStyle: {
+                    opacity: 0.3
+                },
+                lineStyle: {
+                    color: '#4CAF50'
+                },
+                itemStyle: {
+                    color: '#4CAF50'
                 }
             }
-        }
+        ]
+    };
+    
+    memoryChart.setOption(option);
+    
+    // Handle window resize
+    window.addEventListener('resize', function() {
+        if (memoryChart) memoryChart.resize();
     });
 }
 
 function updateChart(data) {
+    if (!levelChart) return;
+    
     // Aggregate counts by level
     const levelCounts = {};
     
     data.forEach(stat => {
         const level = stat.Level || 'UNKNOWN';
-        const count = stat.TotalCount || stat.N || 0; // Handle both detailed and aggregated
+        const count = stat.TotalCount || stat.N || 0;
         levelCounts[level] = (levelCounts[level] || 0) + count;
     });
     
@@ -426,15 +475,20 @@ function updateChart(data) {
     const sortedLevels = Object.keys(levelCounts).sort((a, b) => levelCounts[b] - levelCounts[a]);
     
     // Prepare chart data
-    const labels = sortedLevels;
-    const counts = sortedLevels.map(level => levelCounts[level]);
-    const colors = sortedLevels.map(level => levelColors[level] || '#999');
+    const chartData = sortedLevels.map(level => ({
+        value: levelCounts[level],
+        name: level
+    }));
     
     // Update chart
-    levelChart.data.labels = labels;
-    levelChart.data.datasets[0].data = counts;
-    levelChart.data.datasets[0].backgroundColor = colors;
-    levelChart.update();
+    levelChart.setOption({
+        xAxis: {
+            data: sortedLevels
+        },
+        series: [{
+            data: chartData
+        }]
+    });
 }
 
 function updateTableHeadersForDetailed() {
@@ -894,6 +948,8 @@ function loadDatabaseInfo() {
 }
 
 function updateMemoryChart(data) {
+    if (!memoryChart) return;
+    
     // Extract memory data from stats (most recent first)
     const sortedData = [...data].sort((a, b) => 
         new Date(b.BucketTS) - new Date(a.BucketTS)
@@ -903,10 +959,15 @@ function updateMemoryChart(data) {
     const heapData = sortedData.map(stat => (stat.HeapAlloc_Bytes || 0) / 1024 / 1024);
     const rssData = sortedData.map(stat => (stat.RSS_Bytes || 0) / 1024 / 1024);
     
-    memoryChart.data.labels = labels;
-    memoryChart.data.datasets[0].data = heapData;
-    memoryChart.data.datasets[1].data = rssData;
-    memoryChart.update();
+    memoryChart.setOption({
+        xAxis: {
+            data: labels
+        },
+        series: [
+            { data: heapData },
+            { data: rssData }
+        ]
+    });
 }
 
 function formatBytes(bytes) {
@@ -957,9 +1018,11 @@ function updateTimeSeriesChart() {
     
     if (selectedLoggers.length === 0) {
         // Show empty state
-        timeSeriesChart.data.labels = [];
-        timeSeriesChart.data.datasets = [];
-        timeSeriesChart.update();
+        timeSeriesChart.setOption({
+            xAxis: { data: [] },
+            series: [],
+            legend: { data: [] }
+        });
         return;
     }
     
@@ -984,29 +1047,41 @@ function updateTimeSeriesChart() {
     
     // Sort timestamps
     const sortedTimestamps = Array.from(timestamps).sort();
+    const formattedTimestamps = sortedTimestamps.map(ts => formatTimestamp(ts));
     
-    // Create datasets for each logger
-    const datasets = selectedLoggers.map((logger, index) => {
+    // Create series for each logger
+    const series = selectedLoggers.map((logger, index) => {
         const color = getLoggerColor(logger, index);
         const data = sortedTimestamps.map(ts => timeSeriesData[logger]?.[ts] || 0);
         
         return {
-            label: logger,
+            name: logger,
+            type: 'line',
+            smooth: true,
             data: data,
-            borderColor: color,
-            backgroundColor: color + '20', // Add transparency
-            borderWidth: 2,
-            tension: 0.4,
-            fill: false,
-            pointRadius: 3,
-            pointHoverRadius: 5
+            lineStyle: {
+                color: color,
+                width: 2
+            },
+            itemStyle: {
+                color: color
+            },
+            emphasis: {
+                focus: 'series'
+            }
         };
     });
     
     // Update chart
-    timeSeriesChart.data.labels = sortedTimestamps.map(ts => formatTimestamp(ts));
-    timeSeriesChart.data.datasets = datasets;
-    timeSeriesChart.update();
+    timeSeriesChart.setOption({
+        xAxis: {
+            data: formattedTimestamps
+        },
+        series: series,
+        legend: {
+            data: selectedLoggers
+        }
+    });
 }
 
 function getLoggerColor(logger, index) {

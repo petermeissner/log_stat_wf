@@ -5,7 +5,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="/style.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
 </head>
 <body>
     <div class="main-container">
@@ -145,9 +145,7 @@
                     <!-- Level Distribution Chart -->
                     <div class="chart-section chart-small">
                         <h2>Log Levels Distribution</h2>
-                        <div class="chart-container-small">
-                            <canvas id="levelChart"></canvas>
-                        </div>
+                        <div id="levelChart" class="chart-container-small"></div>
                     </div>
 
                     <!-- Logger Time-Series Chart -->
@@ -165,9 +163,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="chart-container-large">
-                            <canvas id="timeSeriesChart"></canvas>
-                        </div>
+                        <div id="timeSeriesChart" class="chart-container-large"></div>
                     </div>
                 </div>
 
@@ -213,9 +209,7 @@
 
                 <div class="info-card full-width">
                     <h2>Memory Usage Chart</h2>
-                    <div class="chart-container">
-                        <canvas id="memoryChart"></canvas>
-                    </div>
+                    <div id="memoryChart" class="chart-container"></div>
                 </div>
             </div>
         </div>

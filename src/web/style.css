@@ -272,6 +272,7 @@ h3 {
 .chart-container-small {
     position: relative;
     height: 200px;
+    width: 100%;
     background-color: white;
     padding: 10px;
     border-radius: 4px;
@@ -280,6 +281,16 @@ h3 {
 .chart-container-large {
     position: relative;
     height: 400px;
+    width: 100%;
+    background-color: white;
+    padding: 10px;
+    border-radius: 4px;
+}
+
+.chart-container {
+    position: relative;
+    height: 300px;
+    width: 100%;
     background-color: white;
     padding: 10px;
     border-radius: 4px;
