@@ -122,7 +122,7 @@
 
                 <!-- Quick Filter Section -->
                 <div class="quick-filter-section">
-                    <h3>Quick Filter (Client-Side)</h3>
+                    <h3>Quick Filter (Client-Side) <span class="filter-status" id="filterStatus"></span></h3>
                     <div class="quick-filter-controls">
                         <input type="text" id="quickSearchInput" placeholder="Search host, logger, or level..." class="quick-filter-input">
                         <select id="quickLevelFilter" class="quick-filter-select">
@@ -136,7 +136,6 @@
                             <option value="TRACE">TRACE</option>
                         </select>
                         <button type="button" class="btn-clear-filter" id="clearQuickFilter">Clear</button>
-                        <span class="filter-status" id="filterStatus"></span>
                     </div>
                 </div>
 
@@ -153,13 +152,34 @@
                         <div class="chart-header">
                             <h2>Logger Activity Over Time</h2>
                             <div class="logger-selector-controls">
-                                <select id="loggerSelect" class="logger-multiselect" multiple size="5">
-                                    <option disabled>Loading loggers...</option>
-                                </select>
-                                <div class="logger-controls">
-                                    <button type="button" class="btn-chart-control" id="selectTopLoggers">Top 5</button>
-                                    <button type="button" class="btn-chart-control" id="selectAllLoggers">All</button>
-                                    <button type="button" class="btn-chart-control" id="clearLoggers">Clear</button>
+                                <div style="display: flex; gap: 10px;">
+                                    <div>
+                                        <label style="font-weight: bold; margin-bottom: 5px; display: block;">Loggers:</label>
+                                        <select id="loggerSelect" class="logger-multiselect" multiple size="5">
+                                            <option disabled>Loading loggers...</option>
+                                        </select>
+                                        <div class="logger-controls">
+                                            <button type="button" class="btn-chart-control" id="selectTopLoggers">Top 5</button>
+                                            <button type="button" class="btn-chart-control" id="selectAllLoggers">All</button>
+                                            <button type="button" class="btn-chart-control" id="clearLoggers">Clear</button>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label style="font-weight: bold; margin-bottom: 5px; display: block;">Levels:</label>
+                                        <select id="levelSelect" class="logger-multiselect" multiple size="5">
+                                            <option value="FATAL">FATAL</option>
+                                            <option value="ERROR">ERROR</option>
+                                            <option value="WARN">WARN</option>
+                                            <option value="WARNING">WARNING</option>
+                                            <option value="INFO" selected>INFO</option>
+                                            <option value="DEBUG">DEBUG</option>
+                                            <option value="TRACE">TRACE</option>
+                                        </select>
+                                        <div class="logger-controls">
+                                            <button type="button" class="btn-chart-control" id="selectAllLevels">All</button>
+                                            <button type="button" class="btn-chart-control" id="clearLevels">Clear</button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>

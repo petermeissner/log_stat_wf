@@ -13,6 +13,7 @@ let quickFilterText = ''; // Client-side filter text
 let quickFilterLevel = ''; // Client-side filter level
 let availableLoggers = []; // List of all unique loggers
 let selectedLoggers = []; // Currently selected loggers for chart
+let selectedLevels = ['INFO']; // Currently selected levels for time-series chart (default INFO)
 let loggerColors = {}; // Color mapping for loggers
 
 // Color mapping for log levels
@@ -41,6 +42,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Setup logger selection handlers
     setupLoggerSelection();
+    
+    // Setup level selection handlers
+    setupLevelSelection();
 
     // Handle filter form submission
     document.getElementById('filterForm').addEventListener('submit', function(e) {
@@ -117,33 +121,26 @@ function initializeChart() {
                 type: 'shadow'
             }
         },
+        legend: {
+            data: ['FATAL', 'ERROR', 'WARN', 'WARNING', 'INFO', 'DEBUG', 'TRACE'],
+            type: 'scroll',
+            bottom: 0
+        },
         grid: {
             left: '3%',
             right: '4%',
-            bottom: '3%',
+            bottom: '15%',
             containLabel: true
         },
         xAxis: {
             type: 'category',
-            data: [],
-            axisLabel: {
-                rotate: 0
-            }
+            data: []
         },
         yAxis: {
             type: 'value',
             name: 'Count'
         },
-        series: [{
-            name: 'Messages',
-            type: 'bar',
-            data: [],
-            itemStyle: {
-                color: function(params) {
-                    return levelColors[params.name] || '#999';
-                }
-            }
-        }]
+        series: []
     };
     
     levelChart.setOption(option);
@@ -310,6 +307,32 @@ function setupLoggerSelection() {
     });
 }
 
+function setupLevelSelection() {
+    const levelSelect = document.getElementById('levelSelect');
+    const allBtn = document.getElementById('selectAllLevels');
+    const clearBtn = document.getElementById('clearLevels');
+    
+    // Handle level selection changes
+    levelSelect.addEventListener('change', function() {
+        selectedLevels = Array.from(this.selectedOptions).map(opt => opt.value);
+        updateTimeSeriesChart();
+    });
+    
+    // Select all levels
+    allBtn.addEventListener('click', function() {
+        Array.from(levelSelect.options).forEach(opt => opt.selected = true);
+        selectedLevels = Array.from(levelSelect.options).map(opt => opt.value);
+        updateTimeSeriesChart();
+    });
+    
+    // Clear selection
+    clearBtn.addEventListener('click', function() {
+        levelSelect.selectedIndex = -1;
+        selectedLevels = [];
+        updateTimeSeriesChart();
+    });
+}
+
 function applyQuickFilter() {
     // Start with all current data
     filteredData = [...currentData];
@@ -333,14 +356,10 @@ function applyQuickFilter() {
     
     // Update filter status
     const statusEl = document.getElementById('filterStatus');
-    if (quickFilterText || quickFilterLevel) {
-        const total = currentData.length;
-        const filtered = filteredData.length;
-        statusEl.textContent = `Showing ${filtered} of ${total} records`;
-        statusEl.style.display = 'inline';
-    } else {
-        statusEl.style.display = 'none';
-    }
+    const total = currentData.length;
+    const filtered = filteredData.length;
+    statusEl.textContent = `(${filtered}/${total})`;
+    statusEl.style.display = 'inline';
     
     // Update charts with filtered data
     updateChart(filteredData);
@@ -462,33 +481,77 @@ function initializeMemoryChart() {
 function updateChart(data) {
     if (!levelChart) return;
     
-    // Aggregate counts by level
-    const levelCounts = {};
+    // Aggregate data by timestamp and level
+    const timeSeriesData = {};
+    const timestamps = new Set();
+    const levels = ['FATAL', 'ERROR', 'WARN', 'WARNING', 'INFO', 'DEBUG', 'TRACE'];
     
     data.forEach(stat => {
+        const timestamp = stat.BucketTS;
         const level = stat.Level || 'UNKNOWN';
         const count = stat.TotalCount || stat.N || 0;
-        levelCounts[level] = (levelCounts[level] || 0) + count;
+        
+        timestamps.add(timestamp);
+        
+        if (!timeSeriesData[level]) {
+            timeSeriesData[level] = {};
+        }
+        
+        timeSeriesData[level][timestamp] = (timeSeriesData[level][timestamp] || 0) + count;
     });
     
-    // Sort levels by count (descending)
-    const sortedLevels = Object.keys(levelCounts).sort((a, b) => levelCounts[b] - levelCounts[a]);
+    // Sort timestamps
+    const sortedTimestamps = Array.from(timestamps).sort();
+    const formattedTimestamps = sortedTimestamps.map(ts => formatTimestamp(ts));
     
-    // Prepare chart data
-    const chartData = sortedLevels.map(level => ({
-        value: levelCounts[level],
-        name: level
-    }));
+    // Create series for each level as stacked bars
+    const series = levels.map(level => {
+        const color = levelColors[level] || '#999';
+        const data = sortedTimestamps.map(ts => timeSeriesData[level]?.[ts] || 0);
+        
+        return {
+            name: level,
+            type: 'bar',
+            stack: 'Total',
+            emphasis: {
+                focus: 'series'
+            },
+            data: data,
+            itemStyle: {
+                color: color
+            }
+        };
+    }).filter(s => s.data.some(v => v > 0)); // Only include levels with data
     
-    // Update chart
+    // Update chart (notMerge: true to replace data instead of merging)
     levelChart.setOption({
-        xAxis: {
-            data: sortedLevels
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: {
+                type: 'shadow'
+            }
         },
-        series: [{
-            data: chartData
-        }]
-    });
+        legend: {
+            data: series.map(s => s.name),
+            type: 'scroll',
+            bottom: 0
+        },
+        grid: {
+            left: '3%',
+            right: '4%',
+            bottom: '15%',
+            containLabel: true
+        },
+        xAxis: {
+            type: 'category',
+            data: formattedTimestamps
+        },
+        yAxis: {
+            type: 'value',
+            name: 'Count'
+        },
+        series: series
+    }, true); // notMerge: true
 }
 
 function updateTableHeadersForDetailed() {
@@ -716,7 +779,11 @@ function loadStats() {
             quickFilterLevel = '';
             document.getElementById('quickSearchInput').value = '';
             document.getElementById('quickLevelFilter').value = '';
-            document.getElementById('filterStatus').style.display = 'none';
+            
+            // Update filter status with initial count
+            const statusEl = document.getElementById('filterStatus');
+            statusEl.textContent = `(${currentData.length}/${currentData.length})`;
+            statusEl.style.display = 'inline';
             
             if (!currentData || currentData.length === 0) {
                 const colspan = viewMode === 'aggregated' ? '6' : '8';
@@ -960,14 +1027,63 @@ function updateMemoryChart(data) {
     const rssData = sortedData.map(stat => (stat.RSS_Bytes || 0) / 1024 / 1024);
     
     memoryChart.setOption({
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: {
+                type: 'cross'
+            }
+        },
+        legend: {
+            data: ['Heap Allocated', 'RSS']
+        },
+        grid: {
+            left: '3%',
+            right: '4%',
+            bottom: '3%',
+            containLabel: true
+        },
         xAxis: {
+            type: 'category',
+            boundaryGap: false,
             data: labels
         },
+        yAxis: {
+            type: 'value',
+            name: 'Memory (MB)'
+        },
         series: [
-            { data: heapData },
-            { data: rssData }
+            {
+                name: 'Heap Allocated',
+                type: 'line',
+                smooth: true,
+                data: heapData,
+                areaStyle: {
+                    opacity: 0.3
+                },
+                lineStyle: {
+                    color: '#2196F3'
+                },
+                itemStyle: {
+                    color: '#2196F3'
+                }
+            },
+            {
+                name: 'RSS',
+                type: 'line',
+                smooth: true,
+                data: rssData,
+                areaStyle: {
+                    opacity: 0.3
+                },
+                lineStyle: {
+                    color: '#4CAF50'
+                },
+                itemStyle: {
+                    color: '#4CAF50'
+                }
+            }
         ]
-    });
+    }, true); // notMerge: true
 }
 
 function formatBytes(bytes) {
@@ -1019,10 +1135,34 @@ function updateTimeSeriesChart() {
     if (selectedLoggers.length === 0) {
         // Show empty state
         timeSeriesChart.setOption({
-            xAxis: { data: [] },
-            series: [],
-            legend: { data: [] }
-        });
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: {
+                    type: 'cross'
+                }
+            },
+            legend: {
+                data: [],
+                type: 'scroll',
+                bottom: 0
+            },
+            grid: {
+                left: '3%',
+                right: '4%',
+                bottom: '15%',
+                containLabel: true
+            },
+            xAxis: {
+                type: 'category',
+                boundaryGap: false,
+                data: []
+            },
+            yAxis: {
+                type: 'value',
+                name: 'Message Count'
+            },
+            series: []
+        }, true); // notMerge: true
         return;
     }
     
@@ -1033,6 +1173,10 @@ function updateTimeSeriesChart() {
     filteredData.forEach(stat => {
         const logger = stat.Logger || 'Unknown';
         if (!selectedLoggers.includes(logger)) return;
+        
+        // Filter by selected levels
+        const level = stat.Level || 'UNKNOWN';
+        if (selectedLevels.length > 0 && !selectedLevels.includes(level)) return;
         
         const timestamp = stat.BucketTS;
         timestamps.add(timestamp);
@@ -1057,7 +1201,7 @@ function updateTimeSeriesChart() {
         return {
             name: logger,
             type: 'line',
-            smooth: true,
+            step: 'end', // Use step line
             data: data,
             lineStyle: {
                 color: color,
@@ -1072,16 +1216,56 @@ function updateTimeSeriesChart() {
         };
     });
     
-    // Update chart
+    // Update chart (notMerge: true to replace data instead of merging)
     timeSeriesChart.setOption({
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: {
+                type: 'cross'
+            }
+        },
+        legend: {
+            data: selectedLoggers,
+            type: 'scroll',
+            bottom: 0
+        },
+        grid: {
+            left: '3%',
+            right: '4%',
+            bottom: '15%',
+            containLabel: true
+        },
+        toolbox: {
+            feature: {
+                dataZoom: {
+                    yAxisIndex: 'none'
+                },
+                restore: {},
+                saveAsImage: {}
+            }
+        },
+        dataZoom: [
+            {
+                type: 'inside',
+                start: 0,
+                end: 100
+            },
+            {
+                start: 0,
+                end: 100
+            }
+        ],
         xAxis: {
+            type: 'category',
+            boundaryGap: false,
             data: formattedTimestamps
         },
-        series: series,
-        legend: {
-            data: selectedLoggers
-        }
-    });
+        yAxis: {
+            type: 'value',
+            name: 'Message Count'
+        },
+        series: series
+    }, true); // notMerge: true
 }
 
 function getLoggerColor(logger, index) {

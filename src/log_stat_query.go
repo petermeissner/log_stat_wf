@@ -4,10 +4,53 @@ import (
 	"database/sql"
 	"log"
 	"regexp"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
 )
+
+// regexToLike converts a simple regex pattern to SQL LIKE pattern
+func regexToLike(pattern string) string {
+	if pattern == "" {
+		return "%"
+	}
+
+	// Check for anchored patterns
+	hasStart := strings.HasPrefix(pattern, "^")
+	hasEnd := strings.HasSuffix(pattern, "$")
+
+	// Remove anchors
+	if hasStart {
+		pattern = strings.TrimPrefix(pattern, "^")
+	}
+	if hasEnd {
+		pattern = strings.TrimSuffix(pattern, "$")
+	}
+
+	// Replace regex patterns with LIKE wildcards
+	pattern = strings.ReplaceAll(pattern, ".*", "%")
+	pattern = strings.ReplaceAll(pattern, "\\.", ".") // Unescape dots
+
+	// Add wildcards based on anchors
+	if !hasStart && !hasEnd {
+		// No anchors - match anywhere
+		pattern = "%" + pattern + "%"
+	} else if hasStart && !hasEnd {
+		// Start anchor only - starts with
+		if !strings.HasSuffix(pattern, "%") {
+			pattern = pattern + "%"
+		}
+	} else if !hasStart && hasEnd {
+		// End anchor only - ends with
+		if !strings.HasPrefix(pattern, "%") {
+			pattern = "%" + pattern
+		}
+	}
+	// else both anchors - exact match, use pattern as-is
+
+	return pattern
+}
 
 // QueryFilter holds filter criteria for querying log statistics
 type QueryFilter struct {
@@ -121,6 +164,13 @@ func (s *LogStatStore) queryDatabaseWithFilter(filter QueryFilter) ([]*LogStat, 
 		args = append(args, filter.Level)
 	}
 
+	// Convert pattern to SQL LIKE
+	if filter.LoggerRegex != "" {
+		likePattern := regexToLike(filter.LoggerRegex)
+		query += " AND logger LIKE ?"
+		args = append(args, likePattern)
+	}
+
 	if !filter.StartTime.IsZero() {
 		query += " AND bucket_ts >= ?"
 		args = append(args, filter.StartTime.Format(time.RFC3339))
@@ -133,6 +183,7 @@ func (s *LogStatStore) queryDatabaseWithFilter(filter QueryFilter) ([]*LogStat, 
 
 	query += " ORDER BY bucket_ts DESC"
 
+	// Apply LIMIT
 	if filter.MaxResults > 0 {
 		query += " LIMIT ?"
 		args = append(args, filter.MaxResults)
@@ -151,6 +202,7 @@ func (s *LogStatStore) queryDatabaseWithFilter(filter QueryFilter) ([]*LogStat, 
 			log.Printf("Error scanning row: %v\n", err)
 			continue
 		}
+
 		stats = append(stats, stat)
 	}
 
@@ -253,9 +305,9 @@ func (s *LogStatStore) queryAggregatedFromDB(filter QueryFilter) ([]*AggregatedS
 			hostname,
 			bucket_ts,
 			level,
-			SUM(n) as total_count,
-			COUNT(DISTINCT logger) as logger_count,
-			MIN(first_seen_ts) as first_seen_ts
+			logger,
+			n,
+			first_seen_ts
 		FROM log_stats
 		WHERE 1=1
 	`
@@ -264,6 +316,13 @@ func (s *LogStatStore) queryAggregatedFromDB(filter QueryFilter) ([]*AggregatedS
 	if filter.Level != "" {
 		query += " AND level = ?"
 		args = append(args, filter.Level)
+	}
+
+	// Convert pattern to SQL LIKE
+	if filter.LoggerRegex != "" {
+		likePattern := regexToLike(filter.LoggerRegex)
+		query += " AND logger LIKE ?"
+		args = append(args, likePattern)
 	}
 
 	if !filter.StartTime.IsZero() {
@@ -276,12 +335,7 @@ func (s *LogStatStore) queryAggregatedFromDB(filter QueryFilter) ([]*AggregatedS
 		args = append(args, filter.EndTime.Format(time.RFC3339))
 	}
 
-	query += " GROUP BY hostname, bucket_ts, level ORDER BY bucket_ts DESC"
-
-	if filter.MaxResults > 0 {
-		query += " LIMIT ?"
-		args = append(args, filter.MaxResults)
-	}
+	query += " ORDER BY bucket_ts DESC"
 
 	rows, err := db.Query(query, args...)
 	if err != nil {
@@ -289,17 +343,27 @@ func (s *LogStatStore) queryAggregatedFromDB(filter QueryFilter) ([]*AggregatedS
 	}
 	defer rows.Close()
 
-	var aggregates []*AggregatedStat
+	// Read rows
+	var filteredStats []*LogStat
 	for rows.Next() {
-		agg := &AggregatedStat{}
-		if err := rows.Scan(&agg.HostName, &agg.BucketTS, &agg.Level, &agg.TotalCount, &agg.LoggerCount, &agg.FirstSeenTS); err != nil {
-			log.Printf("Error scanning aggregated row: %v\n", err)
+		stat := &LogStat{}
+		if err := rows.Scan(&stat.HostName, &stat.BucketTS, &stat.Level, &stat.Logger, &stat.N, &stat.FirstSeenTS); err != nil {
+			log.Printf("Error scanning row: %v\n", err)
 			continue
 		}
-		aggregates = append(aggregates, agg)
+
+		filteredStats = append(filteredStats, stat)
 	}
 
-	return aggregates, rows.Err()
+	// Now aggregate the filtered stats
+	aggregated := aggregateStats(filteredStats)
+
+	// Apply max results to aggregated data
+	if filter.MaxResults > 0 && len(aggregated) > filter.MaxResults {
+		aggregated = aggregated[:filter.MaxResults]
+	}
+
+	return aggregated, rows.Err()
 }
 
 // aggregateStats aggregates a slice of LogStats
