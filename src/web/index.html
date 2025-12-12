@@ -140,11 +140,34 @@
                     </div>
                 </div>
 
-                <!-- Chart Section -->
-                <div class="chart-section">
-                    <h2>Log Levels Distribution</h2>
-                    <div class="chart-container">
-                        <canvas id="levelChart"></canvas>
+                <!-- Charts Section -->
+                <div class="charts-wrapper">
+                    <!-- Level Distribution Chart -->
+                    <div class="chart-section chart-small">
+                        <h2>Log Levels Distribution</h2>
+                        <div class="chart-container-small">
+                            <canvas id="levelChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Logger Time-Series Chart -->
+                    <div class="chart-section chart-large">
+                        <div class="chart-header">
+                            <h2>Logger Activity Over Time</h2>
+                            <div class="logger-selector-controls">
+                                <select id="loggerSelect" class="logger-multiselect" multiple size="5">
+                                    <option disabled>Loading loggers...</option>
+                                </select>
+                                <div class="logger-controls">
+                                    <button type="button" class="btn-chart-control" id="selectTopLoggers">Top 5</button>
+                                    <button type="button" class="btn-chart-control" id="selectAllLoggers">All</button>
+                                    <button type="button" class="btn-chart-control" id="clearLoggers">Clear</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="chart-container-large">
+                            <canvas id="timeSeriesChart"></canvas>
+                        </div>
                     </div>
                 </div>
 

@@ -246,21 +246,99 @@ h3 {
     background-color: #0b7dda;
 }
 
-/* Chart Styles */
-.chart-section {
-    margin-bottom: 20px;
+/* Charts Wrapper */
+.charts-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
 }
 
-.chart-container {
+/* Chart Styles */
+.chart-section {
+    background-color: #f9f9f9;
+    border-left: 4px solid #4CAF50;
+    border-radius: 4px;
+    padding: 15px;
+}
+
+.chart-small {
+    flex: 0 0 auto;
+}
+
+.chart-large {
+    flex: 1 1 auto;
+}
+
+.chart-container-small {
     position: relative;
-    height: 300px;
+    height: 200px;
     background-color: white;
     padding: 10px;
     border-radius: 4px;
 }
 
-#levelChart {
-    max-height: 280px;
+.chart-container-large {
+    position: relative;
+    height: 400px;
+    background-color: white;
+    padding: 10px;
+    border-radius: 4px;
+}
+
+.chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 15px;
+    gap: 20px;
+}
+
+.chart-header h2 {
+    margin: 0;
+    flex: 0 0 auto;
+}
+
+.logger-selector-controls {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    flex: 1 1 auto;
+}
+
+.logger-multiselect {
+    flex: 1;
+    padding: 6px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 12px;
+    font-family: monospace;
+    max-width: 400px;
+}
+
+.logger-multiselect option {
+    padding: 4px;
+}
+
+.logger-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.btn-chart-control {
+    padding: 5px 12px;
+    background-color: #2196F3;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.btn-chart-control:hover {
+    background-color: #0b7dda;
 }
 
 table {

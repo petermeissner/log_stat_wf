@@ -5,11 +5,15 @@ let filteredData = []; // Store filtered data for client-side filtering
 let sortColumn = null;
 let sortDirection = 'asc'; // 'asc' or 'desc'
 let levelChart = null; // Chart.js instance
+let timeSeriesChart = null; // Time-series chart instance
 let memoryChart = null; // Memory chart instance
 let currentViewMode = 'detailed'; // 'detailed' or 'aggregated'
 let currentPage = 'dashboard'; // Current active page
 let quickFilterText = ''; // Client-side filter text
 let quickFilterLevel = ''; // Client-side filter level
+let availableLoggers = []; // List of all unique loggers
+let selectedLoggers = []; // Currently selected loggers for chart
+let loggerColors = {}; // Color mapping for loggers
 
 // Color mapping for log levels
 const levelColors = {
@@ -26,6 +30,7 @@ const levelColors = {
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize charts
     initializeChart();
+    initializeTimeSeriesChart();
     initializeMemoryChart();
 
     // Setup navigation
@@ -33,6 +38,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Setup quick filter handlers
     setupQuickFilters();
+    
+    // Setup logger selection handlers
+    setupLoggerSelection();
 
     // Handle filter form submission
     document.getElementById('filterForm').addEventListener('submit', function(e) {
@@ -128,6 +136,65 @@ function initializeChart() {
             plugins: {
                 legend: {
                     display: false
+                },
+                title: {
+                    display: false
+                }
+            }
+        }
+    });
+}
+
+function initializeTimeSeriesChart() {
+    const ctx = document.getElementById('timeSeriesChart').getContext('2d');
+    timeSeriesChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: []
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
+            scales: {
+                x: {
+                    display: true,
+                    title: {
+                        display: true,
+                        text: 'Time'
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Message Count'
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top',
+                    onClick: (e, legendItem, legend) => {
+                        // Toggle dataset visibility
+                        const index = legendItem.datasetIndex;
+                        const chart = legend.chart;
+                        const meta = chart.getDatasetMeta(index);
+                        meta.hidden = !meta.hidden;
+                        chart.update();
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + context.parsed.y + ' messages';
+                        }
+                    }
                 }
             }
         }
@@ -175,6 +242,59 @@ function setupQuickFilters() {
     });
 }
 
+function setupLoggerSelection() {
+    const loggerSelect = document.getElementById('loggerSelect');
+    const topBtn = document.getElementById('selectTopLoggers');
+    const allBtn = document.getElementById('selectAllLoggers');
+    const clearBtn = document.getElementById('clearLoggers');
+    
+    // Handle logger selection changes
+    loggerSelect.addEventListener('change', function() {
+        selectedLoggers = Array.from(this.selectedOptions).map(opt => opt.value);
+        updateTimeSeriesChart();
+    });
+    
+    // Select top 5 loggers by volume
+    topBtn.addEventListener('click', function() {
+        if (availableLoggers.length === 0) return;
+        
+        // Calculate total volume per logger from filtered data
+        const loggerVolumes = {};
+        filteredData.forEach(stat => {
+            const logger = stat.Logger || 'Unknown';
+            loggerVolumes[logger] = (loggerVolumes[logger] || 0) + (stat.N || stat.TotalCount || 0);
+        });
+        
+        // Sort and take top 5
+        const top5 = Object.entries(loggerVolumes)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5)
+            .map(entry => entry[0]);
+        
+        // Select in dropdown
+        Array.from(loggerSelect.options).forEach(opt => {
+            opt.selected = top5.includes(opt.value);
+        });
+        
+        selectedLoggers = top5;
+        updateTimeSeriesChart();
+    });
+    
+    // Select all loggers
+    allBtn.addEventListener('click', function() {
+        Array.from(loggerSelect.options).forEach(opt => opt.selected = true);
+        selectedLoggers = availableLoggers;
+        updateTimeSeriesChart();
+    });
+    
+    // Clear selection
+    clearBtn.addEventListener('click', function() {
+        loggerSelect.selectedIndex = -1;
+        selectedLoggers = [];
+        updateTimeSeriesChart();
+    });
+}
+
 function applyQuickFilter() {
     // Start with all current data
     filteredData = [...currentData];
@@ -207,8 +327,10 @@ function applyQuickFilter() {
         statusEl.style.display = 'none';
     }
     
-    // Update chart with filtered data
+    // Update charts with filtered data
     updateChart(filteredData);
+    updateLoggerList(filteredData);
+    updateTimeSeriesChart();
     
     // Apply sorting if active
     if (sortColumn) {
@@ -550,8 +672,10 @@ function loadStats() {
                 return;
             }
             
-            // Update chart
+            // Update charts
             updateChart(currentData);
+            updateLoggerList(currentData);
+            updateTimeSeriesChart();
             
             // Apply current sort if one is active
             if (sortColumn) {
@@ -791,4 +915,112 @@ function formatBytes(bytes) {
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+}
+
+function updateLoggerList(data) {
+    // Extract unique loggers from data
+    const loggersSet = new Set();
+    data.forEach(stat => {
+        const logger = stat.Logger || 'Unknown';
+        loggersSet.add(logger);
+    });
+    
+    availableLoggers = Array.from(loggersSet).sort();
+    
+    // Update dropdown
+    const select = document.getElementById('loggerSelect');
+    const previouslySelected = selectedLoggers;
+    
+    select.innerHTML = '';
+    if (availableLoggers.length === 0) {
+        select.innerHTML = '<option disabled>No loggers available</option>';
+        return;
+    }
+    
+    availableLoggers.forEach(logger => {
+        const option = document.createElement('option');
+        option.value = logger;
+        option.textContent = logger;
+        // Restore previous selection if logger still exists
+        if (previouslySelected.includes(logger)) {
+            option.selected = true;
+        }
+        select.appendChild(option);
+    });
+    
+    // Update selected loggers list
+    selectedLoggers = previouslySelected.filter(l => availableLoggers.includes(l));
+}
+
+function updateTimeSeriesChart() {
+    if (!timeSeriesChart) return;
+    
+    if (selectedLoggers.length === 0) {
+        // Show empty state
+        timeSeriesChart.data.labels = [];
+        timeSeriesChart.data.datasets = [];
+        timeSeriesChart.update();
+        return;
+    }
+    
+    // Aggregate data by logger and time
+    const timeSeriesData = {};
+    const timestamps = new Set();
+    
+    filteredData.forEach(stat => {
+        const logger = stat.Logger || 'Unknown';
+        if (!selectedLoggers.includes(logger)) return;
+        
+        const timestamp = stat.BucketTS;
+        timestamps.add(timestamp);
+        
+        if (!timeSeriesData[logger]) {
+            timeSeriesData[logger] = {};
+        }
+        
+        const count = stat.N || stat.TotalCount || 0;
+        timeSeriesData[logger][timestamp] = (timeSeriesData[logger][timestamp] || 0) + count;
+    });
+    
+    // Sort timestamps
+    const sortedTimestamps = Array.from(timestamps).sort();
+    
+    // Create datasets for each logger
+    const datasets = selectedLoggers.map((logger, index) => {
+        const color = getLoggerColor(logger, index);
+        const data = sortedTimestamps.map(ts => timeSeriesData[logger]?.[ts] || 0);
+        
+        return {
+            label: logger,
+            data: data,
+            borderColor: color,
+            backgroundColor: color + '20', // Add transparency
+            borderWidth: 2,
+            tension: 0.4,
+            fill: false,
+            pointRadius: 3,
+            pointHoverRadius: 5
+        };
+    });
+    
+    // Update chart
+    timeSeriesChart.data.labels = sortedTimestamps.map(ts => formatTimestamp(ts));
+    timeSeriesChart.data.datasets = datasets;
+    timeSeriesChart.update();
+}
+
+function getLoggerColor(logger, index) {
+    // Return cached color if exists
+    if (loggerColors[logger]) {
+        return loggerColors[logger];
+    }
+    
+    // Generate distinct colors using HSL
+    const hue = (index * 137.5) % 360; // Golden angle for better distribution
+    const saturation = 65 + (index % 3) * 10;
+    const lightness = 45 + (index % 2) * 10;
+    const color = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+    
+    loggerColors[logger] = color;
+    return color;
 }
