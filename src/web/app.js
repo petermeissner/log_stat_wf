@@ -404,6 +404,12 @@ function navigateToPage(pageName) {
         loadSystemInfo();
     } else if (pageName === 'database') {
         loadDatabaseInfo();
+    } else if (pageName === 'stream') {
+        initializeStreamPage();
+        // Trigger resize after page is visible to ensure chart has correct dimensions
+        setTimeout(() => {
+            window.dispatchEvent(new Event('resize'));
+        }, 150);
     }
 }
 
@@ -1282,4 +1288,20 @@ function getLoggerColor(logger, index) {
     
     loggerColors[logger] = color;
     return color;
+}
+
+// Stream page initialization flag
+let streamPageInitialized = false;
+
+function initializeStreamPage() {
+    // Only initialize once
+    if (streamPageInitialized) {
+        return;
+    }
+    streamPageInitialized = true;
+    
+    // Initialize stream functionality (defined in stream.js)
+    if (typeof initializeStreamUI === 'function') {
+        initializeStreamUI();
+    }
 }

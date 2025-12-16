@@ -22,7 +22,7 @@ func main() {
 	// Define command-line flags
 	host := flag.String("host", "localhost", "Host to listen on")
 	tcpPort := flag.String("tcp-port", "3001", "TCP port for log receiver")
-	httpPort := flag.String("http-port", "3000", "HTTP port for web interface")
+	httpPort := flag.String("http-port", "3000", "HTTP port for web interface and WebSocket")
 	dbPath := flag.String("db-path", "log_stat.db", "Path to SQLite database file")
 	bucketSize := flag.Duration("bucket-size", 1*time.Minute, "Time bucket size (1m, 5m, 10m, 15m, 20m, 30m, 60m)")
 	retentionDays := flag.Int("retention-days", 7, "Number of days to retain data in database")
@@ -62,8 +62,15 @@ func main() {
 	log.Println("=== Starting LogStat HTTP Server on " + httpAddr + " ===")
 	log.Printf("=== Bucket size: %v ===\n", *bucketSize)
 
-	// Create log stat store with bucket size
+	// Create WebSocket hub (max 20 clients)
+	hub := NewHub(20)
+
+	// Start hub in background
+	go hub.Run()
+
+	// Create log stat store with bucket size and hub reference
 	store := NewLogStatStore(*bucketSize, *dbPath, *verbose)
+	store.hub = hub // Set hub reference for broadcasting
 
 	// Initialize database
 	if err := store.InitDB(); err != nil {
@@ -77,8 +84,8 @@ func main() {
 	}
 	defer listener.Close()
 
-	// Start HTTP server
-	go startHTTPServer(httpAddr, store)
+	// Start HTTP server with WebSocket support
+	go startHTTPServer(httpAddr, store, hub)
 
 	// Start periodic flush to database
 	go func() {

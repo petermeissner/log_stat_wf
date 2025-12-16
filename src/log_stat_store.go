@@ -21,6 +21,7 @@ type LogStatStore struct {
 	mu           sync.RWMutex
 	dbPath       string // path to SQLite database file
 	verbose      bool   // enable verbose output
+	hub          *Hub   // WebSocket hub for broadcasting
 }
 
 // NewLogStatStore creates a new store instance with the specified bucket size
@@ -114,6 +115,9 @@ func (s *LogStatStore) handleJsonLogEntry(line string) {
 		level := ""
 		loggerName := ""
 		hostName := ""
+		message := ""
+		stackTrace := ""
+		timestamp := time.Now()
 
 		if lvl, ok := logEntry["level"]; ok {
 			level = fmt.Sprintf("%v", lvl)
@@ -124,24 +128,47 @@ func (s *LogStatStore) handleJsonLogEntry(line string) {
 		if h, ok := logEntry["hostName"]; ok {
 			hostName = fmt.Sprintf("%v", h)
 		}
+		if msg, ok := logEntry["message"].(string); ok {
+			message = msg
+		}
+		if st, ok := logEntry["stackTrace"].(string); ok {
+			stackTrace = st
+		}
+		if ts, ok := logEntry["timestamp"].(string); ok {
+			// Try to parse timestamp
+			if parsedTS, err := time.Parse(time.RFC3339, ts); err == nil {
+				timestamp = parsedTS
+			}
+		}
 
 		// handle timer loggers
 		if !strings.Contains(strings.ToLower(loggerName), "peter") && strings.Contains(strings.ToLower(loggerName), "timer") {
 			// extract timer id from message field, pattern = "timedObjectId=restjms19.restjms19.SchedMe"
 			timerID := "Unknown"
-			if msg, ok := logEntry["message"].(string); ok {
-				// Use regex to extract timedObjectId value
-				timer_regex := regexp.MustCompile(`timedObjectId=([^\s\)]+)`)
-				matches := timer_regex.FindStringSubmatch(msg)
-				if len(matches) > 1 {
-					timerID = matches[1]
-				}
+			// Use regex to extract timedObjectId value
+			timer_regex := regexp.MustCompile(`timedObjectId=([^\s\)]+)`)
+			matches := timer_regex.FindStringSubmatch(message)
+			if len(matches) > 1 {
+				timerID = matches[1]
 			}
 			loggerName = loggerName + ":" + timerID
 		}
 
 		// Add or update in store
 		stat := s.AddOrUpdate(hostName, level, loggerName)
+
+		// Broadcast to WebSocket clients
+		if s.hub != nil {
+			rawEntry := &RawLogEntry{
+				Timestamp:  timestamp,
+				Host:       hostName,
+				Logger:     loggerName,
+				Level:      level,
+				Message:    message,
+				StackTrace: stackTrace,
+			}
+			s.hub.BroadcastLog(rawEntry)
+		}
 
 		// Simple output
 		if s.verbose {

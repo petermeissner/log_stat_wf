@@ -25,6 +25,10 @@
                 <span class="nav-icon">💾</span>
                 <span class="nav-label">Database Info</span>
             </button>
+            <button class="nav-tab" data-page="stream">
+                <span class="nav-icon">📡</span>
+                <span class="nav-label">Live Stream</span>
+            </button>
         </nav>
 
         <!-- Page: Dashboard -->
@@ -259,8 +263,198 @@
                 </div>
             </div>
         </div>
+
+        <!-- Page: Live Stream -->
+        <div class="page-content" id="page-stream">
+            <div class="stream-container">
+                <!-- Filters Panel -->
+                <div class="filters-panel">
+                    <h2 style="font-size: 16px; margin-top: 0;">Filters</h2>
+
+                    <!-- Filter Buttons at Top -->
+                    <div class="filter-buttons" style="margin-top: 0; margin-bottom: 15px;">
+                        <button class="btn-apply" onclick="applyFilters()">Apply Filters</button>
+                        <button class="btn-reset" onclick="resetFilters()">Reset</button>
+                    </div>
+
+                    <!-- Basic Filters -->
+                    <div class="filter-section">
+                        <h3>Log Levels</h3>
+                        <div class="filter-content">
+                            <div class="checkbox-group">
+                                <label><input type="checkbox" id="level-debug" value="DEBUG"> DEBUG</label>
+                                <label><input type="checkbox" id="level-info" value="INFO" checked> INFO</label>
+                                <label><input type="checkbox" id="level-warn" value="WARN" checked> WARN</label>
+                                <label><input type="checkbox" id="level-error" value="ERROR" checked> ERROR</label>
+                                <label><input type="checkbox" id="level-fatal" value="FATAL" checked> FATAL</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="filter-section">
+                        <h3 class="collapsible collapsed">Host Patterns</h3>
+                        <div class="filter-content collapsed">
+                            <div class="filter-group">
+                                <label>Glob patterns (one per line)</label>
+                                <textarea id="host-patterns" placeholder="*&#10;prod-*&#10;server-01"></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="filter-section">
+                        <h3 class="collapsible collapsed">Logger Patterns</h3>
+                        <div class="filter-content collapsed">
+                            <div class="filter-group">
+                                <label>Glob patterns (one per line)</label>
+                                <textarea id="logger-patterns" placeholder="*&#10;com.example.*&#10;org.jboss.*"></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Advanced Filters -->
+                    <div class="filter-section">
+                        <h3 class="collapsible collapsed">Advanced Filters</h3>
+                        <div class="filter-content collapsed">
+                            <div class="filter-group">
+                                <label>Message Contains (comma-separated)</label>
+                                <input type="text" id="message-contains" placeholder="timeout, failed, error">
+                            </div>
+                            <div class="filter-group">
+                                <label>Message Excludes (comma-separated)</label>
+                                <input type="text" id="message-excludes" placeholder="debug, trace">
+                            </div>
+                            <div class="filter-group">
+                                <label>Message Regex</label>
+                                <input type="text" id="message-regex" placeholder="Exception.*occurred">
+                            </div>
+                            <div class="filter-group">
+                                <label>Stack Trace Mode</label>
+                                <select id="stack-trace-mode">
+                                    <option value="summary">Summary</option>
+                                    <option value="filtered" selected>Filtered</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label>Stack Trace Include Patterns</label>
+                                <textarea id="stack-include" placeholder="com.example.*&#10;org.myapp.*"></textarea>
+                            </div>
+                            <div class="filter-group">
+                                <label>Stack Trace Exclude Patterns</label>
+                                <textarea id="stack-exclude" placeholder="org.jboss.*&#10;java.*">org.jboss.*
+org.wildfly.*</textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Performance Controls -->
+                    <div class="filter-section">
+                        <h3 class="collapsible collapsed">Performance</h3>
+                        <div class="filter-content collapsed">
+                            <div class="filter-group">
+                                <label>Rate Limit (msg/sec, 0=unlimited)</label>
+                                <input type="number" id="rate-limit" value="0" min="0" max="10000">
+                            </div>
+                            <div class="filter-group">
+                                <label>Batch Timeout (ms, 0=no batching)</label>
+                                <input type="number" id="batch-timeout" value="0" min="0" max="5000">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Display Settings -->
+                    <div class="filter-section">
+                        <h3 class="collapsible collapsed">Display Settings</h3>
+                        <div class="filter-content collapsed">
+                            <div class="filter-group">
+                                <label>Chart Time Window (seconds)</label>
+                                <input type="number" id="chart-window" value="300" min="60" max="3600">
+                            </div>
+                            <div class="filter-group">
+                                <label>Chart Bucket Size (seconds)</label>
+                                <input type="number" id="chart-bucket" value="20" min="1" max="300">
+                            </div>
+                            <div class="filter-group">
+                                <label>Max Messages to Display</label>
+                                <input type="number" id="max-messages" value="10000" min="100" max="50000">
+                            </div>
+                            <div class="filter-group">
+                                <label>Update Interval (ms)</label>
+                                <input type="number" id="update-interval" value="250" min="50" max="5000">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Content -->
+                <div class="main-content">
+                    <!-- Controls Bar -->
+                    <div class="controls-bar">
+                        <div class="status-indicator">
+                            <div class="status-dot disconnected" id="status-dot"></div>
+                            <span id="status-text">Disconnected</span>
+                        </div>
+                        <button onclick="toggleConnection()">Connect</button>
+                        <label>
+                            <input type="checkbox" id="auto-scroll" checked>
+                            Auto-scroll
+                        </label>
+                        <button onclick="clearMessages()">Clear</button>
+                        <div class="stats-info" id="stats-info">
+                            Messages: 0 | Clients: 0 | Dropped: 0
+                        </div>
+                    </div>
+
+                    <!-- Chart -->
+                    <div class="chart-container">
+                        <div id="frequency-chart" style="width: 100%; height: 100%;"></div>
+                    </div>
+
+                    <!-- Messages Table -->
+                    <div class="messages-container">
+                        <div class="messages-header">
+                            <h3>Messages (<span id="message-count">0</span>)</h3>
+                        </div>
+                        <div class="messages-table-wrapper">
+                            <table class="messages-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 100px;">Time</th>
+                                        <th style="width: 120px;">Host</th>
+                                        <th style="width: 150px;">Logger</th>
+                                        <th style="width: 80px;">Level</th>
+                                        <th>Message</th>
+                                        <th style="width: 40px;">Stack</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="messages-tbody">
+                                    <tr>
+                                        <td colspan="6" style="text-align: center; color: #999;">
+                                            No messages yet. Click Connect to start streaming.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for message/stack trace details -->
+    <div id="detail-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">Message Details</h2>
+                <span class="modal-close" onclick="closeModal()">&times;</span>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+            <div class="modal-buttons">
+                <button class="btn-copy" onclick="copyModalContent()">Copy</button>
+                <button class="btn-close" onclick="closeModal()">Close</button>
+            </div>
+        </div>
     </div>
 
     <script src="/app.js"></script>
-</body>
-</html>
+    <script src="/stream.js"></script>

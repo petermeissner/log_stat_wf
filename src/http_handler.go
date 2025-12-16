@@ -80,10 +80,13 @@ func filterStatsByTimestamp(stats []*LogStat, minTS, maxTS string) []*LogStat {
 	return filtered
 }
 
-func startHTTPServer(addr string, store *LogStatStore) {
+func startHTTPServer(addr string, store *LogStatStore, hub *Hub) {
 	app := fiber.New(fiber.Config{
 		AppName: "WildFly Log Statistics",
 	})
+
+	// Setup WebSocket routes
+	SetupWebSocketRoutes(app, hub)
 
 	// Legacy API endpoint (kept for backward compatibility)
 	app.Get("/api/stats", func(c *fiber.Ctx) error {

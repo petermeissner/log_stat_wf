@@ -525,3 +525,381 @@ tr:hover {
     font-size: 14px;
 }
 
+/* Live Stream Page Styles */
+.stream-container {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 10px;
+    height: calc(100vh - 180px);
+}
+
+.filters-panel {
+    background: white;
+    border-radius: 8px;
+    padding: 15px;
+    overflow-y: auto;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.filter-section {
+    margin-bottom: 20px;
+}
+
+.filter-section h3 {
+    font-size: 14px;
+    margin-bottom: 10px;
+    color: #333;
+    cursor: pointer;
+    user-select: none;
+}
+
+.filter-section h3.collapsible::before {
+    content: '▼ ';
+    display: inline-block;
+    transition: transform 0.2s;
+}
+
+.filter-section h3.collapsible.collapsed::before {
+    transform: rotate(-90deg);
+}
+
+.filter-content {
+    max-height: 1000px;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+.filter-content.collapsed {
+    max-height: 0;
+}
+
+.filter-group {
+    margin-bottom: 12px;
+}
+
+.filter-group label {
+    display: block;
+    font-size: 12px;
+    margin-bottom: 4px;
+    color: #666;
+}
+
+.checkbox-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.checkbox-group label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+}
+
+.filter-group input[type="text"],
+.filter-group textarea,
+.filter-group select {
+    width: 100%;
+    padding: 6px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.filter-group textarea {
+    resize: vertical;
+    min-height: 60px;
+    font-family: monospace;
+}
+
+.filter-group input[type="number"] {
+    width: 100%;
+    padding: 6px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.filter-buttons {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 15px;
+}
+
+.btn-apply {
+    flex: 1;
+    padding: 8px 16px;
+    background: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.btn-apply:hover {
+    background: #45a049;
+}
+
+.btn-reset {
+    flex: 1;
+    padding: 8px 16px;
+    background: #f44336;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.btn-reset:hover {
+    background: #da190b;
+}
+
+.main-content {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow: hidden;
+}
+
+.controls-bar {
+    background: white;
+    padding: 10px 15px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.controls-bar button {
+    padding: 8px 16px;
+    background: #2196F3;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.controls-bar button:hover {
+    background: #0b7dda;
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.status-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+}
+
+.status-dot.disconnected {
+    background: #999;
+    animation: none;
+}
+
+.status-dot.connecting {
+    background: #FFA500;
+}
+
+.status-dot.connected {
+    background: #4CAF50;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.stats-info {
+    margin-left: auto;
+    font-size: 12px;
+    color: #666;
+}
+
+.chart-container {
+    background: white;
+    border-radius: 8px;
+    padding: 15px;
+    height: 250px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.messages-container {
+    background: white;
+    border-radius: 8px;
+    padding: 15px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    flex: 1;
+}
+
+.messages-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.messages-header h3 {
+    margin: 0;
+    font-size: 16px;
+}
+
+.messages-table-wrapper {
+    overflow-y: auto;
+    flex: 1;
+}
+
+.messages-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.messages-table thead {
+    position: sticky;
+    top: 0;
+    background: #f5f5f5;
+    z-index: 1;
+}
+
+.messages-table th {
+    text-align: left;
+    padding: 8px;
+    border-bottom: 2px solid #ddd;
+    font-weight: 600;
+}
+
+.messages-table td {
+    padding: 6px 8px;
+    border-bottom: 1px solid #eee;
+    max-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.messages-table tbody tr:hover {
+    background: #f9f9f9;
+}
+
+.level-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 3px;
+    color: white;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.level-DEBUG { background: #2196F3; }
+.level-INFO { background: #4CAF50; }
+.level-WARN { background: #FFA500; }
+.level-ERROR { background: #FF4444; }
+.level-FATAL { background: #8B0000; }
+
+.stack-trace-link {
+    color: #2196F3;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.stack-trace-link:hover {
+    color: #0b7dda;
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+}
+
+.modal-content {
+    background-color: white;
+    margin: 5% auto;
+    padding: 0;
+    border-radius: 8px;
+    width: 80%;
+    max-width: 900px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid #ddd;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 18px;
+}
+
+.modal-close {
+    font-size: 28px;
+    font-weight: bold;
+    color: #999;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.modal-close:hover {
+    color: #333;
+}
+
+.modal-body {
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1;
+    font-family: monospace;
+    font-size: 12px;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.modal-buttons {
+    padding: 15px 20px;
+    border-top: 1px solid #ddd;
+    display: flex;
+    gap: 10px;
+}
+
+.modal-buttons button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.btn-copy {
+    background: #2196F3;
+    color: white;
+}
+
+.btn-close {
+    background: #f44336;
+    color: white;
+}
