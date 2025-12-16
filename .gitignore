@@ -41,6 +41,7 @@ go.sum
 # Binary name specific to this project
 dist/
 build/
+distribution/
 **/*.exe
 **/*.db
 *.db

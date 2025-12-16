@@ -11,6 +11,13 @@ import (
 	"time"
 )
 
+// Version information (set by build script via ldflags)
+var (
+	Version   = "dev"
+	BuildTime = "unknown"
+	GitCommit = "unknown"
+)
+
 func main() {
 	// Define command-line flags
 	host := flag.String("host", "localhost", "Host to listen on")
@@ -20,10 +27,21 @@ func main() {
 	bucketSize := flag.Duration("bucket-size", 1*time.Minute, "Time bucket size (1m, 5m, 10m, 15m, 20m, 30m, 60m)")
 	retentionDays := flag.Int("retention-days", 7, "Number of days to retain data in database")
 	verbose := flag.Bool("verbose", false, "Enable verbose output")
+	version := flag.Bool("version", false, "Show version information")
 	flag.Parse()
+
+	// Show version if requested
+	if *version {
+		log.Printf("log_stat_wf version %s", Version)
+		log.Printf("Build Time: %s", BuildTime)
+		log.Printf("Git Commit: %s", GitCommit)
+		os.Exit(0)
+	}
 
 	// Setup logging with rotation (console + rotating file)
 	setupLogging("log_stat.log")
+
+	log.Printf("=== Starting log_stat_wf v%s ===", Version)
 
 	tcpAddr := *host + ":" + *tcpPort
 	httpAddr := *host + ":" + *httpPort
