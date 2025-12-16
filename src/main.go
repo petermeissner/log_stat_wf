@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"encoding/json"
 	"flag"
 	"log"
 	"net"
@@ -33,17 +32,7 @@ func main() {
 
 	// Show version if requested
 	if *version {
-		versionInfo := map[string]string{
-			"version":    Version,
-			"build_time": BuildTime,
-			"git_commit": GitCommit,
-		}
-		encoder := json.NewEncoder(os.Stdout)
-		encoder.SetIndent("", "  ")
-		if err := encoder.Encode(versionInfo); err != nil {
-			log.Fatalf("Error encoding version info: %v", err)
-		}
-		os.Exit(0)
+		show_version()
 	}
 
 	// Setup logging with rotation (console + rotating file)
