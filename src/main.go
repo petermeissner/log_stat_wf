@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"flag"
 	"log"
 	"net"
@@ -32,9 +33,16 @@ func main() {
 
 	// Show version if requested
 	if *version {
-		log.Printf("log_stat_wf version %s", Version)
-		log.Printf("Build Time: %s", BuildTime)
-		log.Printf("Git Commit: %s", GitCommit)
+		versionInfo := map[string]string{
+			"version":    Version,
+			"build_time": BuildTime,
+			"git_commit": GitCommit,
+		}
+		encoder := json.NewEncoder(os.Stdout)
+		encoder.SetIndent("", "  ")
+		if err := encoder.Encode(versionInfo); err != nil {
+			log.Fatalf("Error encoding version info: %v", err)
+		}
 		os.Exit(0)
 	}
 
