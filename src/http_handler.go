@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"runtime"
 	"strconv"
 	"time"
 
@@ -377,6 +379,54 @@ func startHTTPServer(addr string, store *LogStatStore, hub *Hub) {
 		logRequest("/metrics", map[string]string{"bucket": targetBucket}, start, len(bucketStats), nil)
 		c.Set("Content-Type", "text/plain; version=0.0.4")
 		return c.SendString(output)
+	})
+
+	// System information endpoint
+	app.Get("/api/system/info", func(c *fiber.Ctx) error {
+		start := time.Now()
+
+		var m runtime.MemStats
+		runtime.ReadMemStats(&m)
+
+		hostname, err := os.Hostname()
+		if err != nil {
+			hostname = "unknown"
+		}
+
+		info := SystemInfo{
+			Hostname:     hostname,
+			NumGoroutine: runtime.NumGoroutine(),
+			NumCPU:       runtime.NumCPU(),
+			GoVersion:    runtime.Version(),
+
+			// Memory statistics
+			Alloc:      m.Alloc,
+			TotalAlloc: m.TotalAlloc,
+			Sys:        m.Sys,
+			Lookups:    m.Lookups,
+			Mallocs:    m.Mallocs,
+			Frees:      m.Frees,
+
+			// Heap statistics
+			HeapAlloc:    m.HeapAlloc,
+			HeapSys:      m.HeapSys,
+			HeapIdle:     m.HeapIdle,
+			HeapInuse:    m.HeapInuse,
+			HeapReleased: m.HeapReleased,
+			HeapObjects:  m.HeapObjects,
+
+			// Stack statistics
+			StackInuse: m.StackInuse,
+			StackSys:   m.StackSys,
+
+			// GC statistics
+			NumGC:        m.NumGC,
+			LastGC:       m.LastGC,
+			PauseTotalNs: m.PauseTotalNs,
+		}
+
+		logRequest("/api/system/info", map[string]string{}, start, 1, nil)
+		return c.JSON(info)
 	})
 
 	// Serve embedded static files (CSS, JS)
