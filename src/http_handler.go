@@ -429,6 +429,18 @@ func startHTTPServer(addr string, store *LogStatStore, hub *Hub) {
 		return c.JSON(info)
 	})
 
+	// Build information endpoint
+	app.Get("/api/build/info", func(c *fiber.Ctx) error {
+		start := time.Now()
+		buildInfo := map[string]string{
+			"version":    Version,
+			"build_time": BuildTime,
+			"git_commit": GitCommit,
+		}
+		logRequest("/api/build/info", map[string]string{}, start, 1, nil)
+		return c.JSON(buildInfo)
+	})
+
 	// Serve embedded static files (CSS, JS)
 	app.Use("/", filesystem.New(filesystem.Config{
 		Root:       http.FS(webFiles),

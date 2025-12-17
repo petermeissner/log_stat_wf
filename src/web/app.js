@@ -894,11 +894,36 @@ function escapeHtml(text) {
 
 function loadSystemInfo() {
     // Load system information from the new system info endpoint
+    const buildDiv = document.getElementById('buildInfo');
     const memoryDiv = document.getElementById('memoryStats');
     const runtimeDiv = document.getElementById('runtimeStats');
     
+    buildDiv.innerHTML = '<div class="loading">Loading build information...</div>';
     memoryDiv.innerHTML = '<div class="loading">Loading memory statistics...</div>';
     runtimeDiv.innerHTML = '<div class="loading">Loading runtime information...</div>';
+    
+    // Fetch build info
+    fetch('/api/build/info')
+        .then(response => response.json())
+        .then(info => {
+            buildDiv.innerHTML = `
+                <div class="stat-item">
+                    <span class="stat-label">Version:</span>
+                    <span class="stat-value">${escapeHtml(info.version)}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Build Time:</span>
+                    <span class="stat-value">${escapeHtml(info.build_time)}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Git Commit:</span>
+                    <span class="stat-value">${escapeHtml(info.git_commit)}</span>
+                </div>
+            `;
+        })
+        .catch(err => {
+            buildDiv.innerHTML = '<div class="error">Failed to load build information</div>';
+        });
     
     // Fetch system info
     fetch('/api/system/info')
