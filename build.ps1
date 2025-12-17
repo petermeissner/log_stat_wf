@@ -2,20 +2,8 @@
 # Build script for log_stat_wf - Cross-platform Go build
 
 # Try to get version from git tag, fallback to "dev"
-try {
-    $gitTag = (git describe --tags --exact-match 2>$null)
-    if ($LASTEXITCODE -eq 0 -and $gitTag) {
-        $VERSION = $gitTag -replace '^v', ''  # Remove leading 'v' if present
-    } else {
-        # Try to get the latest tag
-        $latestTag = (git describe --tags --abbrev=0 2>$null)
-        if ($LASTEXITCODE -eq 0 -and $latestTag) {
-            $VERSION = "$($latestTag -replace '^v', '')-dev"
-        }
-    }
-} catch {
-    $VERSION = "dev"
-}
+$VERSION = $(git describe)
+
 
 $APP_NAME = "log_stat_wf"
 $DIST_DIR = "distribution"
@@ -35,10 +23,6 @@ Write-Host "======================================" -ForegroundColor Cyan
 Write-Host ""
 
 # Create distribution directory
-if (Test-Path $DIST_DIR) {
-    Write-Host "Cleaning existing distribution directory..." -ForegroundColor Yellow
-    Remove-Item -Path $DIST_DIR -Recurse -Force
-}
 New-Item -ItemType Directory -Path $DIST_DIR -Force | Out-Null
 
 # Get build timestamp
@@ -65,7 +49,7 @@ foreach ($target in $TARGETS) {
     $arch = $target.ARCH
     $ext = $target.EXT
     
-    $outputName = "${APP_NAME}_v${VERSION}_${os}_${arch}${ext}"
+    $outputName = "${APP_NAME}_${os}_${arch}_${VERSION}${ext}"
     $outputPath = Join-Path $DIST_DIR $outputName
     
     Write-Host "Building for $os/$arch..." -NoNewline
