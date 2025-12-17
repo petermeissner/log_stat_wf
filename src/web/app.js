@@ -654,7 +654,7 @@ function sortTableData(data) {
 
 function renderDetailedTableData(data) {
     const tbody = document.getElementById('statsBody');
-    tbody.innerHTML = '';
+    const fragment = document.createDocumentFragment();
     
     data.forEach(stat => {
         const row = document.createElement('tr');
@@ -670,13 +670,16 @@ function renderDetailedTableData(data) {
             rate
         ];
         row.innerHTML = cells.map(cell => '<td>' + cell + '</td>').join('');
-        tbody.appendChild(row);
+        fragment.appendChild(row);
     });
+    
+    tbody.innerHTML = '';
+    tbody.appendChild(fragment);
 }
 
 function renderAggregatedTableData(data) {
     const tbody = document.getElementById('statsBody');
-    tbody.innerHTML = '';
+    const fragment = document.createDocumentFragment();
     
     data.forEach(stat => {
         const row = document.createElement('tr');
@@ -689,8 +692,11 @@ function renderAggregatedTableData(data) {
             formatTimestamp(stat.FirstSeenTS)
         ];
         row.innerHTML = cells.map(cell => '<td>' + cell + '</td>').join('');
-        tbody.appendChild(row);
+        fragment.appendChild(row);
     });
+    
+    tbody.innerHTML = '';
+    tbody.appendChild(fragment);
 }
 
 function renderTableData(data) {
@@ -857,7 +863,7 @@ function loadStats() {
             if (viewMode === 'aggregated') {
                 renderAggregatedTableData(currentData);
             } else {
-                renderDetailedTableData(currentData);
+               renderDetailedTableData(currentData);
             }
             table.style.display = 'table';
         })
