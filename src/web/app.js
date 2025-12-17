@@ -1,3 +1,4 @@
+console.log('app.js loading...');
 let autoRefreshInterval = null;
 let currentRefreshFrequency = 10000; // Default 10 seconds
 let currentData = []; // Store current table data
@@ -29,10 +30,16 @@ const levelColors = {
 
 // Initialize form handlers and load initial data on page load
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOMContentLoaded: Initializing app');
+    
     // Initialize charts
-    initializeChart();
-    initializeTimeSeriesChart();
-    initializeMemoryChart();
+    console.log('DOMContentLoaded: Initializing charts');
+    console.log('DOMContentLoaded: typeof initializeChart =', typeof initializeDashboardLevelsChart);
+    console.log('DOMContentLoaded: typeof echarts =', typeof echarts);
+    initializeDashboardLevelsChart();
+    console.log('DOMContentLoaded: After initializeChart, levelChart =', levelChart);
+    initializeDashboardTimeSeriesChart();
+    console.log('DOMContentLoaded: After initializeTimeSeriesChart');
 
     // Setup navigation
     setupNavigation();
@@ -110,48 +117,67 @@ document.addEventListener('DOMContentLoaded', function() {
     loadStats();
 });
 
-function initializeChart() {
-    const chartDom = document.getElementById('levelChart');
-    levelChart = echarts.init(chartDom);
-    
-    const option = {
-        tooltip: {
-            trigger: 'axis',
-            axisPointer: {
-                type: 'shadow'
-            }
-        },
-        legend: {
-            data: ['FATAL', 'ERROR', 'WARN', 'WARNING', 'INFO', 'DEBUG', 'TRACE'],
-            type: 'scroll',
-            bottom: 0
-        },
-        grid: {
-            left: '3%',
-            right: '4%',
-            bottom: '15%',
-            containLabel: true
-        },
-        xAxis: {
-            type: 'category',
-            data: []
-        },
-        yAxis: {
-            type: 'value',
-            name: 'Count'
-        },
-        series: []
-    };
-    
-    levelChart.setOption(option);
-    
-    // Handle window resize
-    window.addEventListener('resize', function() {
-        if (levelChart) levelChart.resize();
-    });
+function initializeDashboardLevelsChart() {
+    console.log('!!! initializeDashboardLevelsChart ENTERED !!!');
+    try {
+        console.log('initializeChart: Starting');
+        const chartDom = document.getElementById('levelChart');
+        if (!chartDom) {
+            console.error('levelChart element not found');
+            return;
+        }
+        console.log('initializeChart: Element found, dimensions:', chartDom.offsetWidth, 'x', chartDom.offsetHeight);
+        
+        if (typeof echarts === 'undefined') {
+            console.error('echarts library not loaded!');
+            return;
+        }
+        
+        levelChart = echarts.init(chartDom);
+        console.log('initializeChart: echarts initialized', levelChart ? 'success' : 'failed');
+        
+        const option = {
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: {
+                    type: 'shadow'
+                }
+            },
+            legend: {
+                data: ['FATAL', 'ERROR', 'WARN', 'WARNING', 'INFO', 'DEBUG', 'TRACE'],
+                type: 'scroll',
+                bottom: 0
+            },
+            grid: {
+                left: '3%',
+                right: '4%',
+                bottom: '15%',
+                containLabel: true
+            },
+            xAxis: {
+                type: 'category',
+                data: []
+            },
+            yAxis: {
+                type: 'value',
+                name: 'Count'
+            },
+            series: []
+        };
+        
+        levelChart.setOption(option);
+        
+        // Handle window resize
+        window.addEventListener('resize', function() {
+            if (levelChart) levelChart.resize();
+        });
+    } catch (error) {
+        console.error('initializeChart: Error -', error);
+        return;
+    }
 }
 
-function initializeTimeSeriesChart() {
+function initializeDashboardTimeSeriesChart() {
     const chartDom = document.getElementById('timeSeriesChart');
     timeSeriesChart = echarts.init(chartDom);
     
@@ -263,7 +289,7 @@ function setupLoggerSelection() {
     // Handle logger selection changes
     loggerSelect.addEventListener('change', function() {
         selectedLoggers = Array.from(this.selectedOptions).map(opt => opt.value);
-        updateTimeSeriesChart();
+        updateDashboardTimeSeriesChart();
     });
     
     // Select top 5 loggers by volume
@@ -289,21 +315,21 @@ function setupLoggerSelection() {
         });
         
         selectedLoggers = top5;
-        updateTimeSeriesChart();
+        updateDashboardTimeSeriesChart();
     });
     
     // Select all loggers
     allBtn.addEventListener('click', function() {
         Array.from(loggerSelect.options).forEach(opt => opt.selected = true);
         selectedLoggers = availableLoggers;
-        updateTimeSeriesChart();
+        updateDashboardTimeSeriesChart();
     });
     
     // Clear selection
     clearBtn.addEventListener('click', function() {
         loggerSelect.selectedIndex = -1;
         selectedLoggers = [];
-        updateTimeSeriesChart();
+        updateDashboardTimeSeriesChart();
     });
 }
 
@@ -315,21 +341,21 @@ function setupLevelSelection() {
     // Handle level selection changes
     levelSelect.addEventListener('change', function() {
         selectedLevels = Array.from(this.selectedOptions).map(opt => opt.value);
-        updateTimeSeriesChart();
+        updateDashboardTimeSeriesChart();
     });
     
     // Select all levels
     allBtn.addEventListener('click', function() {
         Array.from(levelSelect.options).forEach(opt => opt.selected = true);
         selectedLevels = Array.from(levelSelect.options).map(opt => opt.value);
-        updateTimeSeriesChart();
+        updateDashboardTimeSeriesChart();
     });
     
     // Clear selection
     clearBtn.addEventListener('click', function() {
         levelSelect.selectedIndex = -1;
         selectedLevels = [];
-        updateTimeSeriesChart();
+        updateDashboardTimeSeriesChart();
     });
 }
 
@@ -362,9 +388,9 @@ function applyQuickFilter() {
     statusEl.style.display = 'inline';
     
     // Update charts with filtered data
-    updateChart(filteredData);
+    updateDashboardLevelsChart(filteredData);
     updateLoggerList(filteredData);
-    updateTimeSeriesChart();
+    updateDashboardTimeSeriesChart();
     
     // Apply sorting if active
     if (sortColumn) {
@@ -484,8 +510,13 @@ function initializeMemoryChart() {
     });
 }
 
-function updateChart(data) {
-    if (!levelChart) return;
+function updateDashboardLevelsChart(data) {
+    if (!levelChart) {
+        console.error('levelChart not initialized');
+        return;
+    }
+    
+    console.log('updateChart called with', data.length, 'records');
     
     // Aggregate data by timestamp and level
     const timeSeriesData = {};
@@ -505,6 +536,9 @@ function updateChart(data) {
         
         timeSeriesData[level][timestamp] = (timeSeriesData[level][timestamp] || 0) + count;
     });
+    
+    console.log('Aggregated data:', timeSeriesData);
+    console.log('Timestamps:', Array.from(timestamps));
     
     // Sort timestamps
     const sortedTimestamps = Array.from(timestamps).sort();
@@ -528,6 +562,8 @@ function updateChart(data) {
             }
         };
     }).filter(s => s.data.some(v => v > 0)); // Only include levels with data
+    
+    console.log('Chart series:', series.length, 'levels with data');
     
     // Update chart (notMerge: true to replace data instead of merging)
     levelChart.setOption({
@@ -768,12 +804,19 @@ function loadStats() {
         updateTableHeadersForDetailed();
     }
     
+    console.log('loadStats: Fetching from', url);
+    
     fetch(url)
         .then(response => {
+            console.log('loadStats: Response received', "HTTP: " + response.status);
             if (!response.ok) throw new Error('Failed to fetch stats');
             return response.json();
         })
         .then(data => {
+
+            globalData = data; // For debugging purposes
+
+            console.log('loadStats: Data received', data ? data.length : 0, 'records');
             loading.style.display = 'none';
             
             // Store data for sorting and filtering
@@ -792,17 +835,19 @@ function loadStats() {
             statusEl.style.display = 'inline';
             
             if (!currentData || currentData.length === 0) {
+                console.log('loadStats: No data, showing empty message');
                 const colspan = viewMode === 'aggregated' ? '6' : '8';
                 tbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center; padding: 20px;">No statistics available for the selected filters</td></tr>`;
                 table.style.display = 'table';
-                updateChart([]);
+                updateDashboardLevelsChart([]);
                 return;
             }
             
+            console.log('loadStats: Updating charts with', currentData.length, 'records');
             // Update charts
-            updateChart(currentData);
+            updateDashboardLevelsChart(currentData);
             updateLoggerList(currentData);
-            updateTimeSeriesChart();
+            updateDashboardTimeSeriesChart();
             
             // Apply current sort if one is active
             if (sortColumn) {
@@ -842,71 +887,80 @@ function escapeHtml(text) {
 }
 
 function loadSystemInfo() {
-    // Load system information from stats that include memory data
+    // Load system information from the new system info endpoint
     const memoryDiv = document.getElementById('memoryStats');
     const runtimeDiv = document.getElementById('runtimeStats');
     
     memoryDiv.innerHTML = '<div class="loading">Loading memory statistics...</div>';
     runtimeDiv.innerHTML = '<div class="loading">Loading runtime information...</div>';
     
-    // Fetch recent stats with memory data
-    fetch('/api/query/recent?hours=1&max_results=10&include_memory=true')
+    // Fetch system info
+    fetch('/api/system/info')
         .then(response => response.json())
-        .then(data => {
-            if (data && data.length > 0) {
-                // Get the most recent stat with memory info
-                const recent = data[0];
-                
-                // Display memory stats
-                memoryDiv.innerHTML = `
-                    <div class="stat-item">
-                        <span class="stat-label">RSS Memory:</span>
-                        <span class="stat-value">${formatBytes(recent.RSS_Bytes || 0)}</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Virtual Memory:</span>
-                        <span class="stat-value">${formatBytes(recent.VMS_Bytes || 0)}</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Heap Allocated:</span>
-                        <span class="stat-value">${formatBytes(recent.HeapAlloc_Bytes || 0)}</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Heap System:</span>
-                        <span class="stat-value">${formatBytes(recent.HeapSys_Bytes || 0)}</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Stack:</span>
-                        <span class="stat-value">${formatBytes(recent.Stack_Bytes || 0)}</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Goroutines:</span>
-                        <span class="stat-value">${recent.Goroutines || 0}</span>
-                    </div>
-                `;
-                
-                // Display runtime stats
-                runtimeDiv.innerHTML = `
-                    <div class="stat-item">
-                        <span class="stat-label">Host:</span>
-                        <span class="stat-value">${escapeHtml(recent.HostName || 'N/A')}</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Last Update:</span>
-                        <span class="stat-value">${formatTimestamp(recent.BucketTS)}</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Total Records:</span>
-                        <span class="stat-value">${data.length}</span>
-                    </div>
-                `;
-                
-                // Update memory chart with historical data
-                updateMemoryChart(data);
-            } else {
-                memoryDiv.innerHTML = '<div class="error">No memory data available</div>';
-                runtimeDiv.innerHTML = '<div class="error">No runtime data available</div>';
-            }
+        .then(info => {
+            // Display memory stats
+            memoryDiv.innerHTML = `
+                <div class="stat-item">
+                    <span class="stat-label">Allocated Memory:</span>
+                    <span class="stat-value">${formatBytes(info.alloc)}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Total Allocated:</span>
+                    <span class="stat-value">${formatBytes(info.total_alloc)}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">System Memory:</span>
+                    <span class="stat-value">${formatBytes(info.sys)}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Heap Allocated:</span>
+                    <span class="stat-value">${formatBytes(info.heap_alloc)}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Heap System:</span>
+                    <span class="stat-value">${formatBytes(info.heap_sys)}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Heap Objects:</span>
+                    <span class="stat-value">${info.heap_objects.toLocaleString()}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Stack Memory:</span>
+                    <span class="stat-value">${formatBytes(info.stack_inuse)}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">GC Cycles:</span>
+                    <span class="stat-value">${info.num_gc}</span>
+                </div>
+            `;
+            
+            // Display runtime stats
+            runtimeDiv.innerHTML = `
+                <div class="stat-item">
+                    <span class="stat-label">Hostname:</span>
+                    <span class="stat-value">${escapeHtml(info.hostname)}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Go Version:</span>
+                    <span class="stat-value">${info.go_version}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Goroutines:</span>
+                    <span class="stat-value">${info.num_goroutine}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">CPU Cores:</span>
+                    <span class="stat-value">${info.num_cpu}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Mallocs:</span>
+                    <span class="stat-value">${info.mallocs.toLocaleString()}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Frees:</span>
+                    <span class="stat-value">${info.frees.toLocaleString()}</span>
+                </div>
+            `;
         })
         .catch(err => {
             memoryDiv.innerHTML = `<div class="error">Error loading memory stats: ${err.message}</div>`;
@@ -1135,7 +1189,7 @@ function updateLoggerList(data) {
     selectedLoggers = previouslySelected.filter(l => availableLoggers.includes(l));
 }
 
-function updateTimeSeriesChart() {
+function updateDashboardTimeSeriesChart() {
     if (!timeSeriesChart) return;
     
     if (selectedLoggers.length === 0) {

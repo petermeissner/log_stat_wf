@@ -279,7 +279,7 @@ let chartWindow = 300; // seconds
 
 // Main initialization function - called from app.js when stream page is shown
 function initializeStreamUI() {
-    initializeChart();
+    initializeStreamChart();
     setupCollapsibleSections();
     loadFilterSettings(); // Load saved filter settings from localStorage
     loadSettings();
@@ -300,7 +300,7 @@ function initializeStreamUI() {
     }, 500);
 }
 
-function initializeChart() {
+function initializeStreamChart() {
     const chartDom = document.getElementById('frequency-chart');
     chart = echarts.init(chartDom);
 
@@ -505,7 +505,7 @@ function startUpdates() {
     
     updateTimer = setInterval(() => {
         processMessageBuffer();
-        updateChart();
+        updateStreamChart();
         updateTable();
     }, updateInterval);
     
@@ -567,7 +567,7 @@ function processMessageBuffer() {
     }
 }
 
-function updateChart() {
+function updateStreamChart() {
     if (!chart) return;
     
     const sortedTimes = Array.from(chartData.keys()).sort((a, b) => a - b);
@@ -752,7 +752,7 @@ function clearMessages() {
     messages = [];
     messageBuffer = [];
     chartData.clear();
-    updateChart();
+    updateStreamChart();
     updateTable();
 }
 
