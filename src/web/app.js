@@ -654,27 +654,48 @@ function sortTableData(data) {
 
 function renderDetailedTableData(data) {
     const tbody = document.getElementById('statsBody');
-    const fragment = document.createDocumentFragment();
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 10px;">Rendering...</td></tr>';
     
-    data.forEach(stat => {
-        const row = document.createElement('tr');
-        const rate = calculateRate(stat.N, stat.BucketDuration_S);
-        const cells = [
-            escapeHtml(stat.HostName || ''),
-            escapeHtml(stat.Logger || ''),
-            escapeHtml(stat.Level || ''),
-            stat.N || 0,
-            formatTimestamp(stat.BucketTS),
-            formatTimestamp(stat.FirstSeenTS),
-            stat.BucketDuration_S || 0,
-            rate
-        ];
-        row.innerHTML = cells.map(cell => '<td>' + cell + '</td>').join('');
-        fragment.appendChild(row);
-    });
+    const CHUNK_SIZE = 100; // Process 100 rows at a time
+    let index = 0;
     
-    tbody.innerHTML = '';
-    tbody.appendChild(fragment);
+    function renderChunk() {
+        const fragment = document.createDocumentFragment();
+        const end = Math.min(index + CHUNK_SIZE, data.length);
+        
+        for (let i = index; i < end; i++) {
+            const stat = data[i];
+            const row = document.createElement('tr');
+            const rate = calculateRate(stat.N, stat.BucketDuration_S);
+            const cells = [
+                escapeHtml(stat.HostName || ''),
+                escapeHtml(stat.Logger || ''),
+                escapeHtml(stat.Level || ''),
+                stat.N || 0,
+                formatTimestamp(stat.BucketTS),
+                formatTimestamp(stat.FirstSeenTS),
+                stat.BucketDuration_S || 0,
+                rate
+            ];
+            row.innerHTML = cells.map(cell => '<td>' + cell + '</td>').join('');
+            fragment.appendChild(row);
+        }
+        
+        if (index === 0) {
+            // First chunk - clear and add
+            tbody.innerHTML = '';
+        }
+        tbody.appendChild(fragment);
+        index = end;
+        
+        if (index < data.length) {
+            // More rows to process, schedule next chunk
+            requestAnimationFrame(renderChunk);
+        }
+    }
+    
+    // Start rendering on next frame
+    requestAnimationFrame(renderChunk);
 }
 
 function renderAggregatedTableData(data) {
@@ -863,7 +884,7 @@ function loadStats() {
             if (viewMode === 'aggregated') {
                 renderAggregatedTableData(currentData);
             } else {
-               renderDetailedTableData(currentData);
+                renderDetailedTableData(currentData);
             }
             table.style.display = 'table';
         })
