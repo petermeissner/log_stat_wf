@@ -153,38 +153,32 @@
 
                     <!-- Logger Time-Series Chart -->
                     <div class="chart-section chart-large">
-                        <div class="chart-header">
-                            <h2>Logger Activity Over Time</h2>
-                            <div class="logger-selector-controls">
-                                <div style="display: flex; gap: 10px;">
-                                    <div>
-                                        <label style="font-weight: bold; margin-bottom: 5px; display: block;">Loggers:</label>
-                                        <select id="loggerSelect" class="logger-multiselect" multiple size="5">
-                                            <option disabled>Loading loggers...</option>
-                                        </select>
-                                        <div class="logger-controls">
-                                            <button type="button" class="btn-chart-control" id="selectTopLoggers">Top 5</button>
-                                            <button type="button" class="btn-chart-control" id="selectAllLoggers">All</button>
-                                            <button type="button" class="btn-chart-control" id="clearLoggers">Clear</button>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label style="font-weight: bold; margin-bottom: 5px; display: block;">Levels:</label>
-                                        <select id="levelSelect" class="logger-multiselect" multiple size="5">
-                                            <option value="FATAL">FATAL</option>
-                                            <option value="ERROR">ERROR</option>
-                                            <option value="WARN">WARN</option>
-                                            <option value="WARNING">WARNING</option>
-                                            <option value="INFO" selected>INFO</option>
-                                            <option value="DEBUG">DEBUG</option>
-                                            <option value="TRACE">TRACE</option>
-                                        </select>
-                                        <div class="logger-controls">
-                                            <button type="button" class="btn-chart-control" id="selectAllLevels">All</button>
-                                            <button type="button" class="btn-chart-control" id="clearLevels">Clear</button>
-                                        </div>
-                                    </div>
-                                </div>
+                        <h2>Logger Activity Over Time</h2>
+                        <div class="logger-selector-controls" style="display: flex; gap: 10px; align-items: flex-start;">
+                            <div>
+                                <label style="font-weight: bold; margin-bottom: 5px; display: block;">Loggers:</label>
+                                <select id="loggerSelect" class="logger-multiselect" multiple size="1">
+                                    <option disabled>Loading loggers...</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="font-weight: bold; margin-bottom: 5px; display: block;">Levels:</label>
+                                <select id="levelSelect" class="logger-multiselect" multiple size="1">
+                                    <option value="FATAL">FATAL</option>
+                                    <option value="ERROR">ERROR</option>
+                                    <option value="WARN">WARN</option>
+                                    <option value="WARNING">WARNING</option>
+                                    <option value="INFO" selected>INFO</option>
+                                    <option value="DEBUG">DEBUG</option>
+                                    <option value="TRACE">TRACE</option>
+                                </select>
+                            </div>
+                            <div style="display: flex; flex-direction: row; gap: 5px; margin-top: 23px;">
+                                <button type="button" class="btn-chart-control" id="selectTopLoggers">Top 5</button>
+                                <button type="button" class="btn-chart-control" id="selectAllLoggers">All Loggers</button>
+                                <button type="button" class="btn-chart-control" id="selectAllLevels">All Levels</button>
+                                <button type="button" class="btn-chart-control" id="clearLoggers">Clear Loggers</button>
+                                <button type="button" class="btn-chart-control" id="clearLevels">Clear Levels</button>
                             </div>
                         </div>
                         <div id="timeSeriesChart" class="chart-container-large"></div>
