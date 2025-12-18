@@ -468,6 +468,26 @@ func startHTTPServer(addr string, store *LogStatStore, hub *Hub, config *AppConf
 		Browse:     false,
 	}))
 
+	// SPA routing - serve index.html for client-side routes (must be after static files)
+	app.Use(func(c *fiber.Ctx) error {
+		path := c.Path()
+		// Skip API routes
+		if len(path) >= 4 && path[:4] == "/api" {
+			return c.Next()
+		}
+		// Skip files with extensions (CSS, JS, etc.)
+		if len(path) > 1 && (path[len(path)-3:] == ".js" || path[len(path)-4:] == ".css" || path[len(path)-4:] == ".ico") {
+			return c.Next()
+		}
+		// Serve index.html for SPA routes
+		data, err := webFiles.ReadFile("web/index.html")
+		if err != nil {
+			return c.Status(404).SendString("Not found")
+		}
+		c.Set("Content-Type", "text/html")
+		return c.Send(data)
+	})
+
 	log.Printf("=== Fiber HTTP server starting on %s ===\n", addr)
 	if err := app.Listen(addr); err != nil {
 		log.Fatalf("HTTP server error: %v\n", err)
