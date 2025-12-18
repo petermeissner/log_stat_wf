@@ -292,6 +292,140 @@ func (s *LogStatStore) QueryAggregatedStatsOptimized(filter QueryFilter) ([]*Agg
 	return mergeAggregates(allAggregates), nil
 }
 
+func dbQueryInt(db *sql.DB, query string, args ...interface{}) int {
+	var result int
+	err := db.QueryRow(query, args...).Scan(&result)
+	if err != nil {
+		log.Printf("Error executing query '%s': %v\n", query, err)
+		return 0
+	}
+	return result
+}
+
+func dbQueryInt64(db *sql.DB, query string, args ...interface{}) int64 {
+	var result int64
+	err := db.QueryRow(query, args...).Scan(&result)
+	if err != nil {
+		log.Printf("Error executing query '%s': %v\n", query, err)
+		return 0
+	}
+	return result
+}
+
+// dbStats, returns map[string]interface{} with comprehensive database statistics
+func (s LogStatStore) dbStats(retentionDays int) (map[string]interface{}, error) {
+
+	// db connection
+	db, err := sql.Open("sqlite", s.dbPath)
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	// Basic counts using helper functions
+	var oldestBucket, newestBucket string
+
+	uniqueBuckets := dbQueryInt(db, "SELECT count(distinct bucket_ts) FROM log_stats")
+	totalEntries := dbQueryInt(db, "SELECT count(*) FROM log_stats")
+	uniqueLevels := dbQueryInt(db, "SELECT count(distinct level) FROM log_stats")
+	uniqueLoggers := dbQueryInt(db, "SELECT count(distinct logger) FROM log_stats")
+	uniqueHosts := dbQueryInt(db, "SELECT count(distinct hostname) FROM log_stats")
+	totalMessages := dbQueryInt64(db, "SELECT COALESCE(SUM(n), 0) FROM log_stats")
+
+	// Get date range
+	query_date_range := "SELECT MIN(bucket_ts), MAX(bucket_ts) FROM log_stats"
+	if err := db.QueryRow(query_date_range).Scan(&oldestBucket, &newestBucket); err != nil {
+		// If no data, set to empty strings
+		oldestBucket = ""
+		newestBucket = ""
+	}
+
+	// Get database file size
+	pageCount := dbQueryInt(db, "PRAGMA page_count")
+	pageSize := dbQueryInt(db, "PRAGMA page_size")
+	dbSizeMB := float64(pageCount*pageSize) / (1024 * 1024)
+
+	// Collect results
+	res := map[string]interface{}{}
+	res["unique_loggers"] = uniqueLoggers
+	res["unique_levels"] = uniqueLevels
+	res["unique_hosts"] = uniqueHosts
+	res["total_entries"] = totalEntries
+	res["unique_buckets"] = uniqueBuckets
+	res["total_messages"] = totalMessages
+	res["oldest_bucket"] = oldestBucket
+	res["newest_bucket"] = newestBucket
+	res["db_size_mb"] = dbSizeMB
+	res["retention_days"] = retentionDays
+
+	// Message counts by level (sum of n, not count of rows)
+	res["n_debug"] = dbQueryInt(db, "SELECT COALESCE(SUM(n), 0) FROM log_stats WHERE level='DEBUG'")
+	res["n_trace"] = dbQueryInt(db, "SELECT COALESCE(SUM(n), 0) FROM log_stats WHERE level='TRACE'")
+	res["n_info"] = dbQueryInt(db, "SELECT COALESCE(SUM(n), 0) FROM log_stats WHERE level='INFO'")
+	res["n_warn"] = dbQueryInt(db, "SELECT COALESCE(SUM(n), 0) FROM log_stats WHERE level='WARN' OR level='WARNING'")
+	res["n_error"] = dbQueryInt(db, "SELECT COALESCE(SUM(n), 0) FROM log_stats WHERE level='ERROR'")
+	res["n_fatal"] = dbQueryInt(db, "SELECT COALESCE(SUM(n), 0) FROM log_stats WHERE level='FATAL'")
+
+	// Recent activity by level for multiple time windows (24h, 8h, 1h)
+	recentActivityQuery := `
+		SELECT level, COALESCE(SUM(n), 0) as message_count 
+		FROM log_stats 
+		WHERE bucket_ts >= ? 
+		GROUP BY level 
+		ORDER BY message_count DESC
+	`
+
+	// 24-hour window
+	cutoffTime24h := time.Now().Add(-24 * time.Hour).Format(time.RFC3339)
+	rows24h, err := db.Query(recentActivityQuery, cutoffTime24h)
+	if err == nil {
+		defer rows24h.Close()
+		recentActivity24h := make(map[string]int64)
+		for rows24h.Next() {
+			var level string
+			var count int64
+			if err := rows24h.Scan(&level, &count); err == nil {
+				recentActivity24h[level] = count
+			}
+		}
+		res["recent_activity_24h"] = recentActivity24h
+	}
+
+	// 8-hour window
+	cutoffTime8h := time.Now().Add(-8 * time.Hour).Format(time.RFC3339)
+	rows8h, err := db.Query(recentActivityQuery, cutoffTime8h)
+	if err == nil {
+		defer rows8h.Close()
+		recentActivity8h := make(map[string]int64)
+		for rows8h.Next() {
+			var level string
+			var count int64
+			if err := rows8h.Scan(&level, &count); err == nil {
+				recentActivity8h[level] = count
+			}
+		}
+		res["recent_activity_8h"] = recentActivity8h
+	}
+
+	// 1-hour window
+	cutoffTime1h := time.Now().Add(-1 * time.Hour).Format(time.RFC3339)
+	rows1h, err := db.Query(recentActivityQuery, cutoffTime1h)
+	if err == nil {
+		defer rows1h.Close()
+		recentActivity1h := make(map[string]int64)
+		for rows1h.Next() {
+			var level string
+			var count int64
+			if err := rows1h.Scan(&level, &count); err == nil {
+				recentActivity1h[level] = count
+			}
+		}
+		res["recent_activity_1h"] = recentActivity1h
+	}
+
+	return res, nil
+}
+
 // queryAggregatedFromDB performs aggregation using SQL GROUP BY
 func (s *LogStatStore) queryAggregatedFromDB(filter QueryFilter) ([]*AggregatedStat, error) {
 	db, err := sql.Open("sqlite", s.dbPath)
@@ -305,9 +439,9 @@ func (s *LogStatStore) queryAggregatedFromDB(filter QueryFilter) ([]*AggregatedS
 			hostname,
 			bucket_ts,
 			level,
-			logger,
-			n,
-			first_seen_ts
+			SUM(n) as total_count,
+			COUNT(DISTINCT logger) as logger_count,
+			MIN(first_seen_ts) as first_seen_ts
 		FROM log_stats
 		WHERE 1=1
 	`
@@ -335,6 +469,7 @@ func (s *LogStatStore) queryAggregatedFromDB(filter QueryFilter) ([]*AggregatedS
 		args = append(args, filter.EndTime.Format(time.RFC3339))
 	}
 
+	query += " GROUP BY hostname, bucket_ts, level"
 	query += " ORDER BY bucket_ts DESC"
 
 	rows, err := db.Query(query, args...)
@@ -343,22 +478,18 @@ func (s *LogStatStore) queryAggregatedFromDB(filter QueryFilter) ([]*AggregatedS
 	}
 	defer rows.Close()
 
-	// Read rows
-	var filteredStats []*LogStat
+	// Read aggregated rows directly
+	var aggregated []*AggregatedStat
 	for rows.Next() {
-		stat := &LogStat{}
-		if err := rows.Scan(&stat.HostName, &stat.BucketTS, &stat.Level, &stat.Logger, &stat.N, &stat.FirstSeenTS); err != nil {
-			log.Printf("Error scanning row: %v\n", err)
+		agg := &AggregatedStat{}
+		if err := rows.Scan(&agg.HostName, &agg.BucketTS, &agg.Level, &agg.TotalCount, &agg.LoggerCount, &agg.FirstSeenTS); err != nil {
+			log.Printf("Error scanning aggregated row: %v\n", err)
 			continue
 		}
-
-		filteredStats = append(filteredStats, stat)
+		aggregated = append(aggregated, agg)
 	}
 
-	// Now aggregate the filtered stats
-	aggregated := aggregateStats(filteredStats)
-
-	// Apply max results to aggregated data
+	// Apply max results filter if specified
 	if filter.MaxResults > 0 && len(aggregated) > filter.MaxResults {
 		aggregated = aggregated[:filter.MaxResults]
 	}

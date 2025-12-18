@@ -84,8 +84,19 @@ func main() {
 	}
 	defer listener.Close()
 
+	// Create app config
+	config := &AppConfig{
+		Host:          *host,
+		TCPPort:       *tcpPort,
+		HTTPPort:      *httpPort,
+		DBPath:        *dbPath,
+		BucketSize:    bucketSize.String(),
+		RetentionDays: *retentionDays,
+		Verbose:       *verbose,
+	}
+
 	// Start HTTP server with WebSocket support
-	go startHTTPServer(httpAddr, store, hub)
+	go startHTTPServer(httpAddr, store, hub, config)
 
 	// Start periodic flush to database
 	go func() {

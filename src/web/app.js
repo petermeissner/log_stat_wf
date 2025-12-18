@@ -1029,94 +1029,130 @@ function loadDatabaseInfo() {
     storageDiv.innerHTML = '<div class="loading">Loading storage information...</div>';
     activityDiv.innerHTML = '<div class="loading">Loading recent activity...</div>';
     
-    // Fetch aggregated stats to get database overview
-    fetch('/api/query/aggregated?max_results=100&include_db=true')
+    // Fetch comprehensive database stats from the dbstats endpoint
+    fetch('/api/dbstats')
         .then(response => response.json())
-        .then(data => {
-            if (data && data.length > 0) {
-                // Calculate database stats
-                let totalRecords = 0;
-                let uniqueLevels = new Set();
-                let uniqueHosts = new Set();
-                let oldestTimestamp = null;
-                let newestTimestamp = null;
+        .then(stats => {
+            // Display database stats with level counts
+            dbStatsDiv.innerHTML = `
+                <div class="stat-item">
+                    <span class="stat-label">Total Messages:</span>
+                    <span class="stat-value">${(stats.total_messages || 0).toLocaleString()}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Total Entries:</span>
+                    <span class="stat-value">${(stats.total_entries || 0).toLocaleString()}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Unique Levels:</span>
+                    <span class="stat-value">${stats.unique_levels || 0}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Unique Hosts:</span>
+                    <span class="stat-value">${stats.unique_hosts || 0}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Unique Loggers:</span>
+                    <span class="stat-value">${stats.unique_loggers || 0}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Unique TS-Buckets:</span>
+                    <span class="stat-value">${stats.unique_buckets || 0}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label" style="color: ${levelColors['FATAL']}">FATAL:</span>
+                    <span class="stat-value">${(stats.n_fatal || 0).toLocaleString()}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label" style="color: ${levelColors['ERROR']}">ERROR:</span>
+                    <span class="stat-value">${(stats.n_error || 0).toLocaleString()}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label" style="color: ${levelColors['WARN']}">WARN:</span>
+                    <span class="stat-value">${(stats.n_warn || 0).toLocaleString()}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label" style="color: ${levelColors['INFO']}">INFO:</span>
+                    <span class="stat-value">${(stats.n_info || 0).toLocaleString()}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label" style="color: ${levelColors['DEBUG']}">DEBUG:</span>
+                    <span class="stat-value">${(stats.n_debug || 0).toLocaleString()}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label" style="color: ${levelColors['TRACE']}">TRACE:</span>
+                    <span class="stat-value">${(stats.n_trace || 0).toLocaleString()}</span>
+                </div>
+            `;
+            
+            // Display storage stats
+            storageDiv.innerHTML = `
+                <div class="stat-item">
+                    <span class="stat-label">Oldest Record:</span>
+                    <span class="stat-value">${stats.oldest_bucket ? formatTimestamp(stats.oldest_bucket) : 'N/A'}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Newest Record:</span>
+                    <span class="stat-value">${stats.newest_bucket ? formatTimestamp(stats.newest_bucket) : 'N/A'}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Database Size:</span>
+                    <span class="stat-value">${stats.db_size_mb ? stats.db_size_mb.toFixed(2) + ' MB' : 'N/A'}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Data Retention:</span>
+                    <span class="stat-value">${stats.retention_days || 'N/A'} days</span>
+                </div>
+            `;
+            
+            // Display recent activity by level for multiple time windows
+            const recentActivity24h = stats.recent_activity_24h || {};
+            const recentActivity8h = stats.recent_activity_8h || {};
+            const recentActivity1h = stats.recent_activity_1h || {};
+            
+            if (Object.keys(recentActivity24h).length > 0 || Object.keys(recentActivity8h).length > 0 || Object.keys(recentActivity1h).length > 0) {
+                // Get all unique levels across all time windows
+                const allLevels = new Set([
+                    ...Object.keys(recentActivity24h),
+                    ...Object.keys(recentActivity8h),
+                    ...Object.keys(recentActivity1h)
+                ]);
                 
-                data.forEach(stat => {
-                    totalRecords += stat.TotalCount || 0;
-                    uniqueLevels.add(stat.Level);
-                    uniqueHosts.add(stat.HostName);
-                    
-                    const ts = new Date(stat.BucketTS);
-                    if (!oldestTimestamp || ts < oldestTimestamp) {
-                        oldestTimestamp = ts;
-                    }
-                    if (!newestTimestamp || ts > newestTimestamp) {
-                        newestTimestamp = ts;
-                    }
-                });
-                
-                dbStatsDiv.innerHTML = `
-                    <div class="stat-item">
-                        <span class="stat-label">Total Records:</span>
-                        <span class="stat-value">${totalRecords.toLocaleString()}</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Unique Levels:</span>
-                        <span class="stat-value">${uniqueLevels.size}</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Unique Hosts:</span>
-                        <span class="stat-value">${uniqueHosts.size}</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Data Buckets:</span>
-                        <span class="stat-value">${data.length}</span>
-                    </div>
-                `;
-                
-                storageDiv.innerHTML = `
-                    <div class="stat-item">
-                        <span class="stat-label">Oldest Record:</span>
-                        <span class="stat-value">${oldestTimestamp ? formatTimestamp(oldestTimestamp) : 'N/A'}</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Newest Record:</span>
-                        <span class="stat-value">${newestTimestamp ? formatTimestamp(newestTimestamp) : 'N/A'}</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Data Retention:</span>
-                        <span class="stat-value">30 days</span>
-                    </div>
-                `;
-                
-                // Show recent activity by level
-                const recentByLevel = {};
-                data.slice(0, 10).forEach(stat => {
-                    const level = stat.Level || 'UNKNOWN';
-                    if (!recentByLevel[level]) {
-                        recentByLevel[level] = 0;
-                    }
-                    recentByLevel[level] += stat.TotalCount || 0;
+                // Sort levels by severity
+                const levelOrder = ['FATAL', 'ERROR', 'WARN', 'WARNING', 'INFO', 'DEBUG', 'TRACE'];
+                const sortedLevels = Array.from(allLevels).sort((a, b) => {
+                    const aIndex = levelOrder.indexOf(a);
+                    const bIndex = levelOrder.indexOf(b);
+                    if (aIndex === -1) return 1;
+                    if (bIndex === -1) return -1;
+                    return aIndex - bIndex;
                 });
                 
                 let activityHtml = '<div class="activity-list">';
-                Object.entries(recentByLevel)
-                    .sort((a, b) => b[1] - a[1])
-                    .forEach(([level, count]) => {
-                        const color = levelColors[level] || '#999';
+                sortedLevels.forEach(level => {
+                    const color = levelColors[level] || '#999';
+                    const count24h = recentActivity24h[level] || 0;
+                    const count8h = recentActivity8h[level] || 0;
+                    const count1h = recentActivity1h[level] || 0;
+                    
+                    // Only show if at least one time window has data
+                    if (count24h > 0 || count8h > 0 || count1h > 0) {
                         activityHtml += `
                             <div class="activity-item">
                                 <span class="activity-level" style="background-color: ${color}">${level}</span>
-                                <span class="activity-count">${count.toLocaleString()} messages</span>
+                                <span class="activity-count">
+                                    24h: ${count24h.toLocaleString()} | 
+                                    8h: ${count8h.toLocaleString()} | 
+                                    1h: ${count1h.toLocaleString()}
+                                </span>
                             </div>
                         `;
-                    });
+                    }
+                });
                 activityHtml += '</div>';
                 activityDiv.innerHTML = activityHtml;
             } else {
-                dbStatsDiv.innerHTML = '<div class="error">No database data available</div>';
-                storageDiv.innerHTML = '<div class="error">No storage data available</div>';
-                activityDiv.innerHTML = '<div class="error">No activity data available</div>';
+                activityDiv.innerHTML = '<div class="info">No recent activity data available</div>';
             }
         })
         .catch(err => {

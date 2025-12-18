@@ -52,3 +52,14 @@ type SystemInfo struct {
 	LastGC       uint64 `json:"last_gc"`        // Time of last GC (Unix timestamp in nanoseconds)
 	PauseTotalNs uint64 `json:"pause_total_ns"` // Cumulative nanoseconds in GC stop-the-world pauses
 }
+
+// AppConfig stores runtime configuration
+type AppConfig struct {
+	Host          string `json:"host"`
+	TCPPort       string `json:"tcp_port"`
+	HTTPPort      string `json:"http_port"`
+	DBPath        string `json:"db_path"`
+	BucketSize    string `json:"bucket_size"`
+	RetentionDays int    `json:"retention_days"`
+	Verbose       bool   `json:"verbose"`
+}

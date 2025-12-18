@@ -17,6 +17,8 @@ import (
 //go:embed web/*
 var webFiles embed.FS
 
+var appConfig *AppConfig
+
 // logRequest logs HTTP request parameters and execution time
 func logRequest(endpoint string, params map[string]string, start time.Time, resultCount int, err error) {
 	duration := time.Since(start)
@@ -82,7 +84,8 @@ func filterStatsByTimestamp(stats []*LogStat, minTS, maxTS string) []*LogStat {
 	return filtered
 }
 
-func startHTTPServer(addr string, store *LogStatStore, hub *Hub) {
+func startHTTPServer(addr string, store *LogStatStore, hub *Hub, config *AppConfig) {
+	appConfig = config // Store globally for handlers
 	app := fiber.New(fiber.Config{
 		AppName: "WildFly Log Statistics",
 	})
@@ -280,6 +283,16 @@ func startHTTPServer(addr string, store *LogStatStore, hub *Hub) {
 		return c.JSON(stats)
 	})
 
+	app.Get("api/dbstats", func(c *fiber.Ctx) error {
+		res, err := store.dbStats(appConfig.RetentionDays)
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{
+				"error": err.Error(),
+			})
+		}
+		return c.JSON(res)
+	})
+
 	app.Get("/api/query/aggregated_recent", func(c *fiber.Ctx) error {
 		start := time.Now()
 		hours := c.QueryInt("hours", 24)
@@ -439,6 +452,13 @@ func startHTTPServer(addr string, store *LogStatStore, hub *Hub) {
 		}
 		logRequest("/api/build/info", map[string]string{}, start, 1, nil)
 		return c.JSON(buildInfo)
+	})
+
+	// Configuration endpoint
+	app.Get("/api/config", func(c *fiber.Ctx) error {
+		start := time.Now()
+		logRequest("/api/config", map[string]string{}, start, 1, nil)
+		return c.JSON(appConfig)
 	})
 
 	// Serve embedded static files (CSS, JS)
